@@ -19,6 +19,13 @@ with open(dev_env_file) as f:
 cred_info['view_names'] = {'HL': 'view_Atwood_product_listings_HL',
                            'SA': 'view_Atwood_product_listings_SA'
                            }
+
+
+#'PL' 'TD' 'CC' 'BL' 'ST' each insurance, IMT
+
+
+
+
 cred_info['gsheet_key'] = '1fG7lWWkvwZrlNKj1rP5ERwQwkcdA40w97e170Iih700'
 
 ########################################
