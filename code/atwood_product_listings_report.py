@@ -74,7 +74,7 @@ def select_query(prod):
     from 
     (select `a`.`id` AS `product_id`,`prov`.`name` AS `provider`,`a`.`name` AS `product_name`,
     (case when (`p`.`last_updated_at` is null) then `p`.`published_at` else `p`.`last_updated_at` end) AS `page_last_updated`,
-    (case when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 95)) then 3 when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 365)) then 2 else 1 end) AS `recency`,
+    (case when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 180)) then 3 else 1 end) AS `recency`,
     concat('https://mozo.com.au',`p`.`path`) AS `page_link`,
     ca.name AS page_author,
     au.name AS last_updater,
@@ -108,6 +108,9 @@ def select_query(prod):
     order by `recency` desc,`prov`.`name`,`a`.`name`,`e`.`cms_page_id`) `t`
     """
     return query
+
+
+### when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 365)) then 2
 
 #%%
 
