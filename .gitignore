@@ -4,6 +4,7 @@ data/processed/
 data/
 results/
 logs/
+auth/
 .env
 .DS_Store
 
