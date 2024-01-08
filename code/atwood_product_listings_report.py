@@ -69,21 +69,36 @@ prod_table = {'HomeLoan': 'home_loans',
 def select_query(prod):
     query = f"""
     select distinct t.product_id AS product_id, t.provider AS provider, t.product_name AS product_name,
-    t.page_last_updated AS page_last_updated, t.recency AS recency, t.page_link AS page_link 
+    t.page_last_updated AS page_last_updated, t.recency AS recency, t.page_link AS page_link,
+    t.page_author, t.last_updater, t.atwood_template
     from 
     (select `a`.`id` AS `product_id`,`prov`.`name` AS `provider`,`a`.`name` AS `product_name`,
     (case when (`p`.`last_updated_at` is null) then `p`.`published_at` else `p`.`last_updated_at` end) AS `page_last_updated`,
     (case when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 95)) then 3 when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 365)) then 2 else 1 end) AS `recency`,
-    concat('https://mozo.com.au',`p`.`path`) AS `page_link` 
+    concat('https://mozo.com.au',`p`.`path`) AS `page_link`,
+    ca.name AS page_author,
+    au.name AS last_updater,
+    ct.name AS atwood_template
     from 
     (`ferris_production`.`cms_entities` `e` 
     left join `ferris_production`.`cms_pages` `p` on (`e`.`cms_page_id` = `p`.`id`)
+
+    left join cms_authors ca  
+    on p.author_id = ca.id
+    
+    left join atwood_users au
+    on p.updater_id = au.id
+
+    left join cms_templates ct 
+    on p.cms_template_id = ct.id
+
     left join `ferris_production`.`cms_component_entities` `ce` on (`e`.`cms_component_entity_id` = `ce`.`id`) 
     left join (
         select `ferris_production`.`cms_entities`.`cms_component_entity_id` AS `id`, 
         1 AS `flag` 
         from `ferris_production`.`cms_entities` 
-        where ((`ferris_production`.`cms_entities`.`cms_component_prop_id` = 81) and (`ferris_production`.`cms_entities`.`published_content` = '{prod}'))
+        where ((`ferris_production`.`cms_entities`.`cms_component_prop_id` = 81) 
+            and (`ferris_production`.`cms_entities`.`published_content` = '{prod}'))
         ) `entity_list` 
         on (`e`.`cms_component_entity_id` = `entity_list`.`id`)
     )
@@ -99,13 +114,12 @@ def select_query(prod):
 products_types = ['HomeLoan', 'SavingsAccount', 'CarLoan'] #, 'PL', 'TD']
 
 result = dict()
-fname = 'atwood_product_listings'
 error_flag = False
 
 try:
     for prod in products_types:
 
-        # test    prod = 'HL'
+        # test    prod = 'HomeLoan'
         with sqlEngine.connect() as dbConnection:
             query = select_query(prod)
             db_results = pd.read_sql(sql=query, con=dbConnection)
@@ -139,13 +153,14 @@ except:
 # %%
 # save pickle
 
+fname = 'atwood_product_listings'
 pname = data_proc_path + fname + '_' + filesavetime + '.pkl'
 with open(pname, 'wb') as file: 
     pickle.dump(result, file) 
 
 
 # %%
-# error check flag
+# error flag file to drive shell script email reporting
     
 if error_flag:
     if os.path.exists(data_proc_path + "success.txt"):
