@@ -58,7 +58,45 @@ sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat
 #%%
 # get views from DB
 
-products_types = ['HL', 'SA'] #, 'PL', 'TD']
+
+prod_table = {'HomeLoan': 'home_loans',
+              'SavingsAccount': 'savings_accounts',
+              'PersonalLoan': 'personal_loans',
+              'CarLoan': 'personal_loans',
+              'TermDeposit': 'term_deposits',
+              'CarInsurance': 'car_insurances'}
+
+def select_query(prod):
+    query = f"""
+    select distinct t.product_id AS product_id, t.provider AS provider, t.product_name AS product_name,
+    t.page_last_updated AS page_last_updated, t.recency AS recency, t.page_link AS page_link 
+    from 
+    (select `a`.`id` AS `product_id`,`prov`.`name` AS `provider`,`a`.`name` AS `product_name`,
+    (case when (`p`.`last_updated_at` is null) then `p`.`published_at` else `p`.`last_updated_at` end) AS `page_last_updated`,
+    (case when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 95)) then 3 when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 365)) then 2 else 1 end) AS `recency`,
+    concat('https://mozo.com.au',`p`.`path`) AS `page_link` 
+    from 
+    (`ferris_production`.`cms_entities` `e` 
+    left join `ferris_production`.`cms_pages` `p` on (`e`.`cms_page_id` = `p`.`id`)
+    left join `ferris_production`.`cms_component_entities` `ce` on (`e`.`cms_component_entity_id` = `ce`.`id`) 
+    left join (
+        select `ferris_production`.`cms_entities`.`cms_component_entity_id` AS `id`, 
+        1 AS `flag` 
+        from `ferris_production`.`cms_entities` 
+        where ((`ferris_production`.`cms_entities`.`cms_component_prop_id` = 81) and (`ferris_production`.`cms_entities`.`published_content` = '{prod}'))
+        ) `entity_list` 
+        on (`e`.`cms_component_entity_id` = `entity_list`.`id`)
+    )
+    left join `ferris_production`.`{prod_table[prod]}` `a` on(`e`.`published_content` = `a`.`id`) 
+    left join `ferris_production`.`providers` `prov` on (`a`.`provider_id` = `prov`.`id`)  
+    where ((`e`.`cms_component_prop_id` = 83) and (`e`.`published_content` is not null) and (`p`.`is_published` = 1) and (`ce`.`hidden` = 0) and (`entity_list`.`flag` = 1)) 
+    order by `recency` desc,`prov`.`name`,`a`.`name`,`e`.`cms_page_id`) `t`
+    """
+    return query
+
+#%%
+
+products_types = ['HomeLoan', 'SavingsAccount', 'CarLoan'] #, 'PL', 'TD']
 
 result = dict()
 fname = 'atwood_product_listings'
@@ -69,8 +107,7 @@ try:
 
         # test    prod = 'HL'
         with sqlEngine.connect() as dbConnection:
-            query =f"""select *  from {view_names[prod]};
-                    """
+            query = select_query(prod)
             db_results = pd.read_sql(sql=query, con=dbConnection)
             result[prod] = db_results
 
@@ -88,11 +125,9 @@ try:
     # note that the Sheets file must be shared with pygsheets@mozo-private-dev.iam.gserviceaccount.com
 
     #update the raw data sheets, starting at cell A1. 
-    wks = sh.worksheet_by_title('HL raw data')
-    wks.set_dataframe(result['HL'],(1,1))
-    wks = sh.worksheet_by_title('SA raw data')
-    wks.set_dataframe(result['SA'],(1,1))
-
+    for prod in products_types:
+        wks = sh.worksheet_by_title(prod + ' raw data')
+        wks.set_dataframe(result[prod],(1,1))
 
     #updated the latest date
     wks = sh.worksheet_by_title('cover')
