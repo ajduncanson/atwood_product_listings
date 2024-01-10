@@ -16,10 +16,11 @@ import pandas as pd
 import numpy as np
 import datetime
 import pytz
-import config
 import pickle
 from sqlalchemy import create_engine
 import pygsheets
+
+import config_atwood_product_listings_report as config
 
 time_zone = pytz.timezone('Australia/Sydney')
 filesavetime = datetime.datetime.now().strftime("%Y%m%d_%H%M")
@@ -48,7 +49,6 @@ def sqlEngineCreator(user, pword, host, db):
 
 #%% 
 # connections
-view_names = config.cred_info['view_names']
 gsheet_key = config.cred_info['gsheet_key']
 
 # %%
