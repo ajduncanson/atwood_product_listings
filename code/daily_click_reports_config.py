@@ -15,8 +15,8 @@ with open(dev_env_file) as f:
         (key,val) = line.rsplit()[0].split('=')
         cred_info[key]=val
         
-gsheets = [
-    {'provider': 'Bendigo',
+cred_info['gsheets'] = [
+    {'provider': 'Up',
      'product_type': 'HomeLoan',
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'}
 ]

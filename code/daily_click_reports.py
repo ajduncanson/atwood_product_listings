@@ -45,13 +45,13 @@ def sqlEngineCreator(user, pword, host, db):
     sqlEngine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{db}') #, pool_size=20, max_overflow=0)
     return sqlEngine
 
-def select_query(provider_id, product_type, test_date):
+def select_query(provider, product_type, dates):
     query = f"""
-    select `date`, count(*), sum(earnings_per_e2e)
+    select `date`, count(*) as Clicks, sum(earnings_per_e2e) as Spend
     from rcd
-	where `date` = '{test_date}'  
+	where {dates}  
 	  and source = 'gts'
-	  and provider_id = {provider_id} and product_type = '{product_type}'
+	  and provider_name = '{provider}' and product_type = '{product_type}'
 	  group by `date`	  
 	  order by `date`
 	  ;
@@ -62,6 +62,9 @@ def write_to_gsheet(key, tab_title, data):
     try:
         sh = gc.open_by_key(key)
         # note that the Sheets file must be shared with pygsheets@mozo-private-dev.iam.gserviceaccount.com
+
+### TBC  test for sheet and make one if it does not exist
+
 
         wks = sh.worksheet_by_title(tab_title)
         wks.set_dataframe(data,(1,1))
@@ -74,36 +77,63 @@ def write_to_gsheet(key, tab_title, data):
 sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
 gc = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
 
+gsheets = config.cred_info['gsheets']
+
 #%%
 # execute
+from datetime import date, timedelta
 
-result = dict()
+today_date = datetime.date.today()
+this_first = today_date.replace(day=1)
+prev_first = prev_last.replace(day=1)
+
+today_string = today_date.strftime("%Y-%m-%d")
+this_first_string = this_first.strftime("%Y-%m-%d")
+prev_first_string = prev_first.strftime("%Y-%m-%d")
+
+tab_string = today_date.strftime("%B %Y")
+prior_tab_string = prev_first.strftime("%B %Y")
+
+month_string = '`date` >= "' + this_first_string + '" and `date` < "' + today_string + '"'
+prior_month_string = '`date` >= "' + prev_first_string + '" and `date` < "' + this_first_string + '"'
+
 error_flag = False
 
 try:
-    for gs in config.gsheets:
+    for gs in gsheets:
 
         # test    prod = 'HomeLoan'
         prod = gs['product_type']
         prov = gs['provider']
         key = gs['gsheets_key']
 
+        #- if there no tab for this month, do last month
+        #if
+        #  # sql query
+        #add totals row
+        # to gsheet
+
+        #- then run today's as normal (it will create this month if it isn't there)
+
+   #TBC make this a fn taking (prov, prod, month-string, tab-string)
+        # sql query
         with sqlEngine.connect() as dbConnection:
-            query = select_query(prov,prod)
+            query = select_query(prov,prod,month_string)
             db_results = pd.read_sql(sql=query, con=dbConnection)    
 
-        write_to_gsheet(key, 'Sheet1', db_results)
-        result[prod] = db_results
+        #add totals row
+        total_row = pd.DataFrame([{'date': 'Total',
+                                   'Clicks': sum(db_results['Clicks']),
+                                   'Spend': sum(db_results['Spend'])
+                                   }])
+        db_results = pd.concat([db_results, total_row], axis=0)
+        
+        # to gsheet
+        write_to_gsheet(key, tab_string, db_results)
 
 except:
     error_flag = True
 
-# %%
-# save pickle
-
-pname = data_proc_path + fname + '_' + filesavetime + '.pkl'
-with open(pname, 'wb') as file: 
-    pickle.dump(result, file) 
 
 # %%
 # error flag file to drive shell script email reporting
