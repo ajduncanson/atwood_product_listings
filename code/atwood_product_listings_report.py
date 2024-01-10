@@ -20,7 +20,7 @@ import pickle
 from sqlalchemy import create_engine
 import pygsheets
 
-import config_atwood_product_listings_report as config
+import atwood_product_listings_report_config as config
 
 time_zone = pytz.timezone('Australia/Sydney')
 filesavetime = datetime.datetime.now().strftime("%Y%m%d_%H%M")
