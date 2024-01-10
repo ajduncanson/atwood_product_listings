@@ -1,6 +1,6 @@
 #!/bin/bash
 
-cd ~/projects/atwood_product_listings/code
+cd ~/projects/sql_to_gsheets/code
 
 start_time=$(TZ=Australia/Sydney date '+%Y-%m-%d %H:%M:%S')
 log_file='../logs/started_'${start_time:0:10}'.log'
