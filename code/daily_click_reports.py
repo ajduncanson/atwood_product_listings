@@ -56,6 +56,8 @@ def select_query(provider, product_type, dates):
 	  order by `date`
 	  ;
     """
+#### TBC build out the report to meet the spec here:  https://docs.google.com/spreadsheets/d/1SfPKTZLPN1ytDFlUyZlN0y5SwG0Hhh5vYhD_zCoKtGs/edit#gid=0
+
     return query
 
 def write_to_gsheet(sh, tab_title, data):
