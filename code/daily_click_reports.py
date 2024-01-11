@@ -58,24 +58,54 @@ def select_query(provider, product_type, dates):
     """
     return query
 
-def write_to_gsheet(key, tab_title, data):
+def write_to_gsheet(sh, tab_title, data):
+    
+    # get the right tab, or make one
     try:
-        sh = gc.open_by_key(key)
-        # note that the Sheets file must be shared with pygsheets@mozo-private-dev.iam.gserviceaccount.com
+        # get tab
+        wks = sh.worksheet_by_title(tab_title)
+    except:
+        # make tab
+        try:
+            sh.add_worksheet(tab_title, rows=100, cols=10, index = 0)
+            wks = sh.worksheet_by_title(tab_title)
+            wks.apply_format(ranges=['B2:B35'], format_info={'numberFormat': {'type': 'NUMBER'}})
+            wks.apply_format(ranges=['C2:C35'], format_info={'numberFormat': {'type': 'CURRENCY'}})
+            
+            #apply_format('C1:C100', {'numberFormat': {'type': 'CURRENCYs'}}) 
 
-### TBC  test for sheet and make one if it does not exist
-
-
+        except:
+            error_flag = True
+    
+    # add the data to it
+    try:
         wks = sh.worksheet_by_title(tab_title)
         wks.set_dataframe(data,(1,1))
-
     except:
         error_flag = True
+
+def read_sql_then_write_gsheet(prov, prod, date_range, sheets_file, tab):
+
+    # sql query
+    with sqlEngine.connect() as dbConnection:
+        query = select_query(prov, prod, date_range)
+        db_results = pd.read_sql(sql=query, con=dbConnection)    
+
+    #add totals row
+    total_row = pd.DataFrame([{'date': 'Total',
+                                'Clicks': sum(db_results['Clicks']),
+                                'Spend': sum(db_results['Spend'])
+                                }])
+    db_results = pd.concat([db_results, total_row], axis=0)
+    
+    # to gsheet
+    write_to_gsheet(sheets_file, tab, db_results)
+
 
 # %%
 # connections 
 sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
-gc = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
+gs_auth = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
 
 gsheets = config.cred_info['gsheets']
 
@@ -85,6 +115,7 @@ from datetime import date, timedelta
 
 today_date = datetime.date.today()
 this_first = today_date.replace(day=1)
+prev_last = this_first - timedelta(days=1)
 prev_first = prev_last.replace(day=1)
 
 today_string = today_date.strftime("%Y-%m-%d")
@@ -101,35 +132,22 @@ error_flag = False
 
 try:
     for gs in gsheets:
+        # test   gs = gsheets[0]
 
-        # test    prod = 'HomeLoan'
-        prod = gs['product_type']
         prov = gs['provider']
+        prod = gs['product_type']
         key = gs['gsheets_key']
 
-        #- if there no tab for this month, do last month
-        #if
-        #  # sql query
-        #add totals row
-        # to gsheet
+        sheets_file = gs_auth.open_by_key(key)
 
-        #- then run today's as normal (it will create this month if it isn't there)
+        # if there no tab for this month, do last month
+        try:
+            sheets_file.worksheets('title', tab_string)
+        except:
+            read_sql_then_write_gsheet(prov, prod, prior_month_string, sheets_file, prior_tab_string)   
 
-   #TBC make this a fn taking (prov, prod, month-string, tab-string)
-        # sql query
-        with sqlEngine.connect() as dbConnection:
-            query = select_query(prov,prod,month_string)
-            db_results = pd.read_sql(sql=query, con=dbConnection)    
-
-        #add totals row
-        total_row = pd.DataFrame([{'date': 'Total',
-                                   'Clicks': sum(db_results['Clicks']),
-                                   'Spend': sum(db_results['Spend'])
-                                   }])
-        db_results = pd.concat([db_results, total_row], axis=0)
-        
-        # to gsheet
-        write_to_gsheet(key, tab_string, db_results)
+        # then run today's as normal (it will create this month if it isn't there already)
+        read_sql_then_write_gsheet(prov, prod, month_string, sheets_file, tab_string)   
 
 except:
     error_flag = True
