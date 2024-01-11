@@ -46,6 +46,7 @@ def sqlEngineCreator(user, pword, host, db):
     return sqlEngine
 
 def select_query(provider, product_type, dates):
+
     query = f"""
     select `date`, count(*) as Clicks, sum(earnings_per_e2e) as Spend
     from rcd
@@ -56,8 +57,16 @@ def select_query(provider, product_type, dates):
 	  order by `date`
 	  ;
     """
-#### TBC build out the report to meet the spec here:  https://docs.google.com/spreadsheets/d/1SfPKTZLPN1ytDFlUyZlN0y5SwG0Hhh5vYhD_zCoKtGs/edit#gid=0
 
+    query = f"""
+    select `date` as Date, product_type as ProductType, product_name as Product, count(*) as Clicks, sum(converted) as Apps, sum(earnings_per_e2e) as Spend
+        from rcd
+	where {dates}  
+	  and source = 'gts'
+	  and provider_name = '{provider}'
+	  group by `date`, product_type, product_name	  
+	  ;
+    """
     return query
 
 def write_to_gsheet(sh, tab_title, data):
@@ -88,21 +97,31 @@ def write_to_gsheet(sh, tab_title, data):
 
 def read_sql_then_write_gsheet(prov, prod, date_range, sheets_file, tab):
 
+    #test   date_range = month_string
+
     # sql query
     with sqlEngine.connect() as dbConnection:
         query = select_query(prov, prod, date_range)
         db_results = pd.read_sql(sql=query, con=dbConnection)    
 
-    #add totals row
+    # pivot the table to suit the new query with product_type and product_name    
+    melted = pd.melt(db_results, id_vars=['Date', 'ProductType', 'Product'], value_vars=['Clicks', 'Apps', 'Spend'], value_name = prov)
+    pivoted = pd.pivot_table(melted, index = ['Date'], columns=['ProductType', 'Product', 'variable'], aggfunc='sum', fill_value=0, margins=True, dropna=True, margins_name='All', observed=False, sort=True)
+
+    ### TBC 
+    ### how to work a multi-level column df to sort Clicks>Apps>Spend, and get subtotals at product type level.
+
+    # add totals row
     total_row = pd.DataFrame([{'date': 'Total',
                                 'Clicks': sum(db_results['Clicks']),
                                 'Spend': sum(db_results['Spend'])
                                 }])
     db_results = pd.concat([db_results, total_row], axis=0)
-    
-    # to gsheet
-    write_to_gsheet(sheets_file, tab, db_results)
 
+
+    # to gsheet
+    #write_to_gsheet(sheets_file, tab, db_results)
+    write_to_gsheet(sheets_file, tab, pivot)
 
 # %%
 # connections 
