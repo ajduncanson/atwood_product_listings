@@ -16,7 +16,7 @@ with open(dev_env_file) as f:
         cred_info[key]=val
         
 cred_info['gsheets'] = [
-    {'provider': 'Up',
+    {'provider': 'Ubank',
      'product_type': 'HomeLoan',
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'}
 ]

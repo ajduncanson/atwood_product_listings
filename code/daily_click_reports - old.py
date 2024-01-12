@@ -45,7 +45,18 @@ def sqlEngineCreator(user, pword, host, db):
     sqlEngine = create_engine(f'mysql+pymysql://{username}:{password}@{host}/{db}') #, pool_size=20, max_overflow=0)
     return sqlEngine
 
-def select_query(provider, dates):
+def select_query(provider, product_type, dates):
+
+    query = f"""
+    select `date`, count(*) as Clicks, sum(earnings_per_e2e) as Spend
+    from rcd
+	where {dates}  
+	  and source = 'gts'
+	  and provider_name = '{provider}' and product_type = '{product_type}'
+	  group by `date`	  
+	  order by `date`
+	  ;
+    """
 
     query = f"""
     select `date` as Date, product_type as ProductType, product_name as Product, count(*) as Clicks, sum(converted) as Apps, sum(earnings_per_e2e) as Spend
@@ -67,90 +78,50 @@ def write_to_gsheet(sh, tab_title, data):
     except:
         # make tab
         try:
-            sh.add_worksheet(tab_title, rows=100, cols=26, index = 0)
+            sh.add_worksheet(tab_title, rows=100, cols=10, index = 0)
             wks = sh.worksheet_by_title(tab_title)
+            wks.apply_format(ranges=['B2:B35'], format_info={'numberFormat': {'type': 'NUMBER'}})
+            wks.apply_format(ranges=['C2:C35'], format_info={'numberFormat': {'type': 'CURRENCY'}})
+            
+            #apply_format('C1:C100', {'numberFormat': {'type': 'CURRENCYs'}}) 
+
         except:
             error_flag = True
     
     # add the data to it
     try:
         wks = sh.worksheet_by_title(tab_title)
-        wks.set_dataframe(data,(1,1), copy_index=True)
+        wks.set_dataframe(data,(1,1))
     except:
         error_flag = True
 
-    # column formatting
-    wks.apply_format(ranges=['B:AH'], format_info={'numberFormat': {'type': 'NUMBER'}})
-    for c in ['D:D','G:G','J:J','M:M','P:P','S:S','V:V','Y:Y','AB:AB','AE:AE','AH:AH']:
-        try:
-            wks.apply_format(ranges=[c], format_info={'numberFormat': {'type': 'CURRENCY'}})
-        except:
-            None
-    #row formatting
-    wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP'})
+def read_sql_then_write_gsheet(prov, prod, date_range, sheets_file, tab):
 
-def make_single_table(data, is_type):
-    if is_type == True:
-        id_list = ['Date', 'ProductType']
-        col_list = ['ProductType','variable']
-    else:
-        id_list = ['Date', 'ProductType', 'Product']
-        col_list = ['ProductType', 'Product', 'variable']
-
-    melted = pd.melt(data, id_vars=id_list, value_vars=['Clicks', 'Apps', 'Spend'])
-    pivoted = pd.pivot_table(melted, index = ['Date'], columns=col_list, aggfunc='sum', fill_value=0, dropna=True,  margins = True, margins_name= 'TOTAL', sort=False)
-
-    # remove the total column if the margins function has created one, but keep the total row
-    if 'TOTAL' in pivoted.columns.get_level_values(level = 1):
-        pivoted = pivoted.drop(labels = 'TOTAL', axis = 1, level = 1)
-
-    # now align multiIndex levels so product and total tables may be merged
-    if is_type == True:
-        pivoted.columns = pd.MultiIndex.from_tuples([(prov, e[1], 'TOTAL', e[2]) for e in pivoted.columns])
-    else:
-        pivoted.columns = pd.MultiIndex.from_tuples([(prov, e[1], e[2], e[3]) for e in pivoted.columns])
-
-    return(pivoted)
-
-
-def extract_transform_load(prov, date_range, sheets_file, tab):
-
-    #test   date_range = month_string; tab = tab_string
+    #test   date_range = month_string
 
     # sql query
     with sqlEngine.connect() as dbConnection:
-        query = select_query(prov, date_range)
+        query = select_query(prov, prod, date_range)
         db_results = pd.read_sql(sql=query, con=dbConnection)    
 
-    product_types = list(set(db_results['ProductType']))
-    result = pd.DataFrame()
+    # pivot the table to suit the new query with product_type and product_name    
+    melted = pd.melt(db_results, id_vars=['Date', 'ProductType', 'Product'], value_vars=['Clicks', 'Apps', 'Spend'], value_name = prov)
+    pivoted = pd.pivot_table(melted, index = ['Date'], columns=['ProductType', 'Product', 'variable'], aggfunc='sum', fill_value=0, margins=True, dropna=True, margins_name='All', observed=False, sort=True)
 
-    for prod in product_types:
-    
-        this_type = db_results[db_results['ProductType']== prod]
-        products = list(set(this_type['Product']))
+    ### TBC 
+    ### how to work a multi-level column df to sort Clicks>Apps>Spend, and get subtotals at product type level.
 
-        for product in products:
-            this_product = this_type[this_type['Product']== product]
+    # add totals row
+    total_row = pd.DataFrame([{'date': 'Total',
+                                'Clicks': sum(db_results['Clicks']),
+                                'Spend': sum(db_results['Spend'])
+                                }])
+    db_results = pd.concat([db_results, total_row], axis=0)
 
-            # product    
-            this_product = make_single_table(this_product, is_type = False)
 
-            if len(result) == 0:
-                result = this_product
-            else:
-                result = result.merge(right = this_product, on = 'Date', how = 'outer')
-        
-        # product_type
-        if len(products) > 1:
-            this_type = make_single_table(this_type, is_type = True)
-            result = result.merge(right = this_type, on = 'Date')
-
-    # tidy up
-    result = result.fillna(value=0)
-    
     # to gsheet
-    write_to_gsheet(sheets_file, tab, result)
+    #write_to_gsheet(sheets_file, tab, db_results)
+    write_to_gsheet(sheets_file, tab, pivot)
 
 # %%
 # connections 
@@ -160,8 +131,7 @@ gs_auth = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e1857
 gsheets = config.cred_info['gsheets']
 
 #%%
-# set date ranges
-
+# execute
 from datetime import date, timedelta
 
 today_date = datetime.date.today()
@@ -179,16 +149,14 @@ prior_tab_string = prev_first.strftime("%B %Y")
 month_string = '`date` >= "' + this_first_string + '" and `date` < "' + today_string + '"'
 prior_month_string = '`date` >= "' + prev_first_string + '" and `date` < "' + this_first_string + '"'
 
-
-#%%
-# execute
-
 error_flag = False
+
 try:
     for gs in gsheets:
         # test   gs = gsheets[0]
 
         prov = gs['provider']
+        prod = gs['product_type']
         key = gs['gsheets_key']
 
         sheets_file = gs_auth.open_by_key(key)
@@ -197,10 +165,10 @@ try:
         try:
             sheets_file.worksheets('title', tab_string)
         except:
-            extract_transform_load(prov, prior_month_string, sheets_file, prior_tab_string)   
+            read_sql_then_write_gsheet(prov, prod, prior_month_string, sheets_file, prior_tab_string)   
 
         # then run today's as normal (it will create this month if it isn't there already)
-        extract_transform_load(prov, month_string, sheets_file, tab_string)   
+        read_sql_then_write_gsheet(prov, prod, month_string, sheets_file, tab_string)   
 
 except:
     error_flag = True
