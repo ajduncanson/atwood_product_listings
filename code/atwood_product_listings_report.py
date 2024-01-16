@@ -83,8 +83,11 @@ def select_query(prod):
     (`ferris_production`.`cms_entities` `e` 
     left join `ferris_production`.`cms_pages` `p` on (`e`.`cms_page_id` = `p`.`id`)
 
+    left join cms_authors_pages cap  
+    on p.id = cap.cms_page_id    
+    
     left join cms_authors ca  
-    on p.author_id = ca.id
+    on cap.cms_author_id = ca.id
     
     left join atwood_users au
     on p.updater_id = au.id
