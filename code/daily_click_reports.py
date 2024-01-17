@@ -48,7 +48,7 @@ def sqlEngineCreator(user, pword, host, db):
 def select_query(provider, dates):
 
     query = f"""
-    select `date` as Date, product_type as ProductType, product_name as Product, count(*) as Clicks, sum(converted) as Apps, sum(earnings_per_e2e) as Spend
+    select `date` as Date, product_type as ProductType, product_name as Product, count(*) as Clicks
         from rcd
 	where {dates}  
 	  and source = 'gts'
@@ -56,6 +56,9 @@ def select_query(provider, dates):
 	  group by `date`, product_type, product_name	  
 	  ;
     """
+
+    ### Not using Apps and Spend right now:     , sum(converted) as Apps, sum(earnings_per_e2e) as Spend
+
     return query
 
 def write_to_gsheet(sh, tab_title, data):
@@ -72,20 +75,24 @@ def write_to_gsheet(sh, tab_title, data):
         except:
             error_flag = True
     
-    # add the data to it
+    # clear worksheet and add new data to it
     try:
         wks = sh.worksheet_by_title(tab_title)
+        wks.clear(start='A1', end=None, fields='*')
         wks.set_dataframe(data,(1,1), copy_index=True)
     except:
         error_flag = True
 
     # column formatting
-    wks.apply_format(ranges=['B:AH'], format_info={'numberFormat': {'type': 'NUMBER'}})
-    for c in ['D:D','G:G','J:J','M:M','P:P','S:S','V:V','Y:Y','AB:AB','AE:AE','AH:AH']:
-        try:
-            wks.apply_format(ranges=[c], format_info={'numberFormat': {'type': 'CURRENCY'}})
-        except:
-            None
+    wks.apply_format(ranges=['B:Z'], format_info={'numberFormat': {'type': 'NUMBER'}})
+
+    # I built this to format Spend columns but we are not using those
+    # for c in ['D:D','G:G','J:J','M:M','P:P','S:S','V:V','Y:Y','AB:AB','AE:AE','AH:AH']:
+    #     try:
+    #         wks.apply_format(ranges=[c], format_info={'numberFormat': {'type': 'CURRENCY'}})
+    #     except:
+    #         None
+
     #row formatting
     wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP'})
 
@@ -97,8 +104,8 @@ def make_single_table(data, is_type):
         id_list = ['Date', 'ProductType', 'Product']
         col_list = ['ProductType', 'Product', 'variable']
 
-    melted = pd.melt(data, id_vars=id_list, value_vars=['Clicks', 'Apps', 'Spend'])
-    pivoted = pd.pivot_table(melted, index = ['Date'], columns=col_list, aggfunc='sum', fill_value=0, dropna=True,  margins = True, margins_name= 'TOTAL', sort=False)
+    melted = pd.melt(data, id_vars=id_list, value_vars=['Clicks'])  ### Not using Apps and Spend right now:    , 'Apps', 'Spend'])
+    pivoted = pd.pivot_table(melted, index = ['Date'], columns=col_list, aggfunc='sum', fill_value=0, dropna=True,  margins = True, margins_name= 'TOTAL', sort=True)
 
     # remove the total column if the margins function has created one, but keep the total row
     if 'TOTAL' in pivoted.columns.get_level_values(level = 1):
@@ -148,6 +155,9 @@ def extract_transform_load(prov, date_range, sheets_file, tab):
 
     # tidy up
     result = result.fillna(value=0)
+    result.index = result.index.astype('string')
+    result = result.sort_index(axis = 0)
+    result = result.sort_index(axis=1)
     
     # to gsheet
     write_to_gsheet(sheets_file, tab, result)

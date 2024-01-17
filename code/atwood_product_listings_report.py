@@ -70,7 +70,9 @@ def select_query(prod):
     query = f"""
     select distinct t.product_id AS product_id, t.provider AS provider, t.product_name AS product_name,
     t.page_last_updated AS page_last_updated, t.recency AS recency, t.page_link AS page_link,
-    t.page_author, t.last_updater, t.atwood_template
+    t.page_author, 
+    case when t.last_updater is NULL then "unknown" else t.last_updater end as last_updater, 
+    t.atwood_template
     from 
     (select `a`.`id` AS `product_id`,`prov`.`name` AS `provider`,`a`.`name` AS `product_name`,
     (case when (`p`.`last_updated_at` is null) then `p`.`published_at` else `p`.`last_updated_at` end) AS `page_last_updated`,
