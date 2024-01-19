@@ -86,7 +86,7 @@ def write_to_gsheet(sh, tab_title, data):
         error_flag = True
 
     # column formatting
-    wks.apply_format(ranges=['B:Z'], format_info={'numberFormat': {'type': 'NUMBER'}})
+    wks.apply_format(ranges=['B:Z'], format_info={'numberFormat': {'type': 'NUMBER'}, "horizontalAlignment": 'RIGHT'})
 
     # I built this to format Spend columns but we are not using those
     # for c in ['D:D','G:G','J:J','M:M','P:P','S:S','V:V','Y:Y','AB:AB','AE:AE','AH:AH']:
@@ -96,7 +96,7 @@ def write_to_gsheet(sh, tab_title, data):
     #         None
 
     #row formatting
-    wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP'})
+    wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP', "horizontalAlignment": 'RIGHT'})
 
 def make_single_table(data, content_columns, is_type):
     if is_type == True:
@@ -167,6 +167,10 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
         # product_type
         if (content[prod]['product_level'] == False or len(products) > 1):
             this_type = make_single_table(this_type, cols, is_type = True)
+            # re-order columns
+            new_col_index = this_type.columns.reindex(cols, level=3)
+            this_type = this_type.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+            # add to result
             result = result.merge(right = this_type, on = 'Date', how = 'outer')
 
     # tidy up
