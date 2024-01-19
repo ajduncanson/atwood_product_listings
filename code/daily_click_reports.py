@@ -48,7 +48,7 @@ def sqlEngineCreator(user, pword, host, db):
 def select_query(provider, dates):
 
     query = f"""
-    select `date` as Date, product_type as ProductType, product_name as Product, count(*) as Clicks
+    select `date` as Date, product_type as ProductType, product_name as Product, count(*) as Clicks, sum(converted) as Apps, sum(earnings_per_e2e) as Spend
         from rcd
 	where {dates}  
 	  and source = 'gts'
@@ -63,6 +63,8 @@ def select_query(provider, dates):
 
 def write_to_gsheet(sh, tab_title, data):
     
+# test      sh = sheets_file; tab_title = tab; data = result
+
     # get the right tab, or make one
     try:
         # get tab
@@ -79,7 +81,7 @@ def write_to_gsheet(sh, tab_title, data):
     try:
         wks = sh.worksheet_by_title(tab_title)
         wks.clear(start='A1', end=None, fields='*')
-        wks.set_dataframe(data,(1,1), copy_index=True)
+        wks.set_dataframe(data,(1,1), copy_index = True)
     except:
         error_flag = True
 
@@ -96,7 +98,7 @@ def write_to_gsheet(sh, tab_title, data):
     #row formatting
     wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP'})
 
-def make_single_table(data, is_type):
+def make_single_table(data, content_columns, is_type):
     if is_type == True:
         id_list = ['Date', 'ProductType']
         col_list = ['ProductType','variable']
@@ -104,7 +106,7 @@ def make_single_table(data, is_type):
         id_list = ['Date', 'ProductType', 'Product']
         col_list = ['ProductType', 'Product', 'variable']
 
-    melted = pd.melt(data, id_vars=id_list, value_vars=['Clicks'])  ### Not using Apps and Spend right now:    , 'Apps', 'Spend'])
+    melted = pd.melt(data, id_vars=id_list, value_vars= content_columns)  ### Not using Apps and Spend right now:    , 'Apps', 'Spend'])
     pivoted = pd.pivot_table(melted, index = ['Date'], columns=col_list, aggfunc='sum', fill_value=0, dropna=True,  margins = True, margins_name= 'TOTAL', sort=True)
 
     # remove the total column if the margins function has created one, but keep the total row
@@ -120,47 +122,61 @@ def make_single_table(data, is_type):
     return(pivoted)
 
 
-def extract_transform_load(prov, date_range, sheets_file, tab):
+def extract_transform_load(prov, content, date_string, date_range, sheets_file, tab):
 
-    #test   date_range = month_string; tab = tab_string
+    #test   date_string = month_string; date_range=month_range; tab = tab_string
 
     # sql query
     with sqlEngine.connect() as dbConnection:
-        query = select_query(prov, date_range)
+        query = select_query(prov, date_string)
         db_results = pd.read_sql(sql=query, con=dbConnection)    
 
     product_types = list(set(db_results['ProductType']))
-    result = pd.DataFrame()
+    product_types = [t for t in product_types if t in content.keys()]
+    product_types.sort()
+
+    # create an empty, with the right index and MultiIndex columns to be able to merge products
+    result = pd.DataFrame({'Date': date_range, 'temp': date_range})
+    result = result.set_index('Date')
+    result.columns=pd.MultiIndex.from_tuples([('','','','temp')])
 
     for prod in product_types:
+
+        # test   prod = product_types[0]
     
         this_type = db_results[db_results['ProductType']== prod]
         products = list(set(this_type['Product']))
+        products.sort()
+        cols = content[prod]['cols']
 
-        for product in products:
-            this_product = this_type[this_type['Product']== product]
+        if content[prod]['product_level'] == True:
+            for product in products:
 
-            # product    
-            this_product = make_single_table(this_product, is_type = False)
+                # test   product = products[0]
 
-            if len(result) == 0:
-                result = this_product
-            else:
+                this_product = this_type[this_type['Product']== product]
+
+                # product    
+                this_product = make_single_table(this_product, cols, is_type = False)
+                # re-order columns
+                new_col_index = this_product.columns.reindex(cols, level=3)
+                this_product = this_product.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+                # add to result
                 result = result.merge(right = this_product, on = 'Date', how = 'outer')
         
         # product_type
-        if len(products) > 1:
-            this_type = make_single_table(this_type, is_type = True)
-            result = result.merge(right = this_type, on = 'Date')
+        if (content[prod]['product_level'] == False or len(products) > 1):
+            this_type = make_single_table(this_type, cols, is_type = True)
+            result = result.merge(right = this_type, on = 'Date', how = 'outer')
 
     # tidy up
     result = result.fillna(value=0)
-    result.index = result.index.astype('string')
-    result = result.sort_index(axis = 0)
-    result = result.sort_index(axis=1)
+    result = result.drop(columns = [('','','','temp')])
     
     # to gsheet
     write_to_gsheet(sheets_file, tab, result)
+
+    return result
 
 # %%
 # connections 
@@ -189,6 +205,8 @@ prior_tab_string = prev_first.strftime("%B %Y")
 month_string = '`date` >= "' + this_first_string + '" and `date` < "' + today_string + '"'
 prior_month_string = '`date` >= "' + prev_first_string + '" and `date` < "' + this_first_string + '"'
 
+month_range = pd.date_range(start=this_first, end=today_date).date
+prior_month_range = pd.date_range(start=prev_first, end=prev_last).date
 
 #%%
 # execute
@@ -199,6 +217,7 @@ try:
         # test   gs = gsheets[0]
 
         prov = gs['provider']
+        content = gs['content']
         key = gs['gsheets_key']
 
         sheets_file = gs_auth.open_by_key(key)
@@ -207,10 +226,10 @@ try:
         try:
             sheets_file.worksheets('title', tab_string)
         except:
-            extract_transform_load(prov, prior_month_string, sheets_file, prior_tab_string)   
+            extract_transform_load(prov, content, prior_month_string, prior_month_range, sheets_file, prior_tab_string)   
 
         # then run today's as normal (it will create this month if it isn't there already)
-        extract_transform_load(prov, month_string, sheets_file, tab_string)   
+        extract_transform_load(prov, content, month_string, month_range, sheets_file, tab_string)   
 
 except:
     error_flag = True

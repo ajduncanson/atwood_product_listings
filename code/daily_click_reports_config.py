@@ -18,8 +18,25 @@ with open(dev_env_file) as f:
 cred_info['gsheets'] = [
     #test file
     {'provider': 'Ubank',
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': False},
+                 'SavingsAccount': {'cols': ['Clicks', 'Apps', 'Spend'], 'product_level': False},
+                 'BankAccount': {'cols': ['Clicks', 'Apps', 'Spend'], 'product_level': False}
+                 },
+     'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
+
+    {'provider': 'Harmoney',
+     'content': {'PersonalLoan': {'cols': ['Clicks', 'Spend'], 'product_level': True}
+                 },
+     'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
+
+    {'provider': 'Lendi',
+     'content': {'HomeLoanBrokerReferral': {'cols': ['Clicks', 'Spend'], 'product_level': True}
+                 },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'}
+     
     #live files
+    #, {'provider': 'Bendigo Bank',
+    #  'gsheets_key': '1p3oa5iWC7ntf_BvDq6mqbRhHEzVvqDWpINRiFAuV5-g'},   
     #, {'provider': 'OurMoneyMarket',
     #  'gsheets_key': '1IIqNKIm7J9izhmSHWlMKWq06rWC'},
     # {'provider': 'Honey Insurance',
@@ -35,7 +52,9 @@ cred_info['gsheets'] = [
     # {'provider': 'Freely',
     #  'gsheets_key': '1rL_8mIOvqAjGrEaQFbiWCxFoikhdQZGQHxJ0d5dca0g'},
     # {'provider': 'NRMA',
-    #  'gsheets_key': '1e6M4XxeSYbWhf-8ISjd3_IS24vyFD59omTtEkNKmQhQ'}
+    #  'gsheets_key': '1e6M4XxeSYbWhf-8ISjd3_IS24vyFD59omTtEkNKmQhQ'},
+    #, {'provider': 'Virgin Money',
+    #  'gsheets_key': '1gIK0X_998BWh5OGMdR481hXsfwL4VCoo1eyAe1qeJUE'},
 ]
 
 # note that the Sheets files must be shared with pygsheets@mozo-private-dev.iam.gserviceaccount.com
