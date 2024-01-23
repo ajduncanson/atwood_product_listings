@@ -149,7 +149,8 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
         products.sort()
         cols = content[prod]['cols']
 
-        if content[prod]['product_level'] == True:
+        # by product record
+        if content[prod]['product_level'] == 'product':
             for product in products:
 
                 # test   product = products[0]
@@ -164,14 +165,35 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
                 # add to result
                 result = result.merge(right = this_product, on = 'Date', how = 'outer')
         
-        # product_type
-        if (content[prod]['product_level'] == False or len(products) > 1):
+        # by product_type
+        if (content[prod]['product_level'] == 'type' or (content[prod]['product_level'] == 'product' and len(products) > 1)):
             this_type = make_single_table(this_type, cols, is_type = True)
             # re-order columns
             new_col_index = this_type.columns.reindex(cols, level=3)
             this_type = this_type.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
             # add to result
             result = result.merge(right = this_type, on = 'Date', how = 'outer')
+
+        # by regex group
+        if (content[prod]['product_level'] == 'regex'):
+
+            group1 = this_type[this_type['Product'].str.contains(grouping['regex'])]
+            group1 = group1.assign(ProductType = grouping['label'])
+            group2 = this_type[~this_type['Product'].str.contains(grouping['regex'])]
+            group2 = group2.assign(ProductType = grouping['other_label'])
+
+            this_group_1 = make_single_table(group1, cols, is_type = True)
+            this_group_2 = make_single_table(group2, cols, is_type = True)
+
+            # re-order columns
+            new_col_index = this_group_1.columns.reindex(cols, level=3)
+            this_group_1 = this_group_1.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+            new_col_index = this_group_2.columns.reindex(cols, level=3)
+            this_group_2 = this_group_2.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+
+            # add to result
+            result = result.merge(right = this_group_1, on = 'Date', how = 'outer')
+            result = result.merge(right = this_group_2, on = 'Date', how = 'outer')
 
     # tidy up
     result = result.fillna(value=0)
@@ -195,6 +217,7 @@ gsheets = config.cred_info['gsheets']
 from datetime import date, timedelta
 
 today_date = datetime.date.today()
+yesterday_date = today_date - timedelta(days=1)
 this_first = today_date.replace(day=1)
 prev_last = this_first - timedelta(days=1)
 prev_first = prev_last.replace(day=1)
@@ -209,7 +232,7 @@ prior_tab_string = prev_first.strftime("%B %Y")
 month_string = '`date` >= "' + this_first_string + '" and `date` < "' + today_string + '"'
 prior_month_string = '`date` >= "' + prev_first_string + '" and `date` < "' + this_first_string + '"'
 
-month_range = pd.date_range(start=this_first, end=today_date).date
+month_range = pd.date_range(start=this_first, end=yesterday_date).date
 prior_month_range = pd.date_range(start=prev_first, end=prev_last).date
 
 #%%
@@ -218,11 +241,13 @@ prior_month_range = pd.date_range(start=prev_first, end=prev_last).date
 error_flag = False
 try:
     for gs in gsheets:
-        # test   gs = gsheets[0]
+        # test   gs = gsheets[8]
 
         prov = gs['provider']
         content = gs['content']
         key = gs['gsheets_key']
+        if 'grouping' in gs.keys():
+            grouping = gs['grouping']
 
         sheets_file = gs_auth.open_by_key(key)
 

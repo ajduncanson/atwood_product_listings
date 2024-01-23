@@ -19,52 +19,61 @@ cred_info['gsheets'] = [
     #test file
 
     {'provider': 'Lendi',
-     'content': {'HomeLoanBrokerReferral': {'cols': ['Clicks', 'Spend'], 'product_level': True}
+     'content': {'HomeLoanBrokerReferral': {'cols': ['Clicks', 'Spend'], 'product_level': 'regex'}
                  },
-     'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
+     'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0',
+     'grouping': {'regex': 'TTAB', 
+                  'label': 'Talk To A Broker', 
+                  'other_label': 'Other placements'}
+     },
 
     {'provider': 'Harmoney',
-     'content': {'PersonalLoan': {'cols': ['Clicks', 'Spend'], 'product_level': True}
+     'content': {'PersonalLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'}
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
 
     {'provider': 'Ubank',
-     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': False},
-                 'SavingsAccount': {'cols': ['Clicks', 'Apps', 'Spend'], 'product_level': False},
-                 'BankAccount': {'cols': ['Clicks', 'Apps', 'Spend'], 'product_level': False}
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
+                 'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
+                 'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
 
     {'provider': 'Bendigo Bank',
-     'content': {'HomeLoan': {'cols': ['Clicks', 'Apps', 'Spend'], 'product_level': False},
-                 'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': False},
-                 'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': False}
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Apps', 'Spend'], 'product_level': 'type'}
+                 },
+     'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
+
+    {'provider': 'Bendigo Bank',
+     'content': {'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
+                 'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
 
     {'provider': 'OurMoneyMarket',
-     'content': {'PersonalLoan': {'cols': ['Clicks', 'Spend'], 'product_level': False},
-                 'CarLoan': {'cols': ['Clicks', 'Spend'], 'product_level': False},
+     'content': {'PersonalLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
+                 'CarLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
 
      {'provider': 'honey',
-     'content': {'HomeInsurance': {'cols': ['Clicks', 'Spend'], 'product_level': False}
+     'content': {'HomeInsurance': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
 
      {'provider': 'AMP Bank',
-     'content': {'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': False}
+     'content': {'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
 
      {'provider': 'Freely',
-     'content': {'TravelInsurance': {'cols': ['Clicks', 'Spend'], 'product_level': False}
+     'content': {'TravelInsurance': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
 
      {'provider': 'Virgin Money',
-     'content': {'CarInsurance': {'cols': ['Clicks'], 'product_level': False}
+     'content': {'CarInsurance': {'cols': ['Clicks'], 'product_level': 'type'},
+                 'HomeInsurance': {'cols': ['Clicks'], 'product_level': 'type'}
                  },
      'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'}  
 
