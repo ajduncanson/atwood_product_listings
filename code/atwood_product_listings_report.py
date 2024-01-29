@@ -56,15 +56,28 @@ gsheet_key = config.cred_info['gsheet_key']
 sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
 
 #%%
-# get views from DB
-
+# get data from DB
 
 prod_table = {'HomeLoan': 'home_loans',
               'SavingsAccount': 'savings_accounts',
+              'TermDeposit': 'term_deposits',
+              'BankAccount': 'bank_accounts',
+              'DebitCard': 'bank_accounts',
               'PersonalLoan': 'personal_loans',
               'CarLoan': 'personal_loans',
-              'TermDeposit': 'term_deposits',
-              'CarInsurance': 'car_insurances'}
+              'CreditCard': 'credit_cards',
+              'RewardsCreditCard': 'credit_cards',
+              'BusinessLoan': 'business_loans',
+              'InternationalMoneyTransfer': 'international_money_transfers',
+              'ShareAccount': 'share_accounts',
+              'MarginLoan': 'margin_loans',
+              'CarInsurance': 'car_insurances',
+              'HomeInsurance': 'home_insurances',
+              'TravelInsurance': 'travel_insurances',
+              'PetInsurance': 'pet_insurances',
+              'LandlordInsurance': 'landlord_insurances',
+              'LifeInsurance': 'life_insurances'
+              }
 
 def select_query(prod):
     query = f"""
@@ -119,13 +132,14 @@ def select_query(prod):
 
 #%%
 
-products_types = ['HomeLoan', 'SavingsAccount', 'CarLoan'] #, 'PL', 'TD']
+product_types = prod_table.keys()
+##['HomeLoan', 'SavingsAccount', 'CarLoan'] #, 'PL', 'TD']
 
 result = dict()
 error_flag = False
 
 try:
-    for prod in products_types:
+    for prod in product_types:
 
         # test    prod = 'HomeLoan'
         with sqlEngine.connect() as dbConnection:
@@ -135,6 +149,11 @@ try:
 
 except:
     error_flag = True
+
+#%%
+    
+# for i in result:
+#     print(result[i].head())
 
 # %%
 # save to gsheets
@@ -147,8 +166,12 @@ try:
     # note that the Sheets file must be shared with pygsheets@mozo-private-dev.iam.gserviceaccount.com
 
     #update the raw data sheets, starting at cell A1. 
-    for prod in products_types:
+    for prod in product_types:
+
+        # test    prod = 'HomeLoan'  
+
         wks = sh.worksheet_by_title(prod + ' raw data')
+        wks.clear(start='A1', end=None, fields='*')
         wks.set_dataframe(result[prod],(1,1))
 
     #updated the latest date
