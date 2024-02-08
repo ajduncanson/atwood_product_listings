@@ -56,12 +56,23 @@ def select_query(provider, dates):
 	  group by `date`, product_type, product_name	  
 	  ;
     """
-
-    ### Not using Apps and Spend right now:     , sum(converted) as Apps, sum(earnings_per_e2e) as Spend
-
     return query
 
-def write_to_gsheet(sh, tab_title, data):
+def select_query_aggregate(dates):
+
+    query = f"""
+    select product_type as ProductType, provider_name as Provider, count(*) as Clicks
+        from rcd
+	where {dates}  
+	  and source = 'gts'
+	  group by product_type, provider_name
+      order by product_type, count(*) desc 
+	  ;
+    """
+    return query
+
+
+def write_to_gsheet(sh, tab_title, data, with_index, with_format):
     
 # test      sh = sheets_file; tab_title = tab; data = result
 
@@ -81,22 +92,16 @@ def write_to_gsheet(sh, tab_title, data):
     try:
         wks = sh.worksheet_by_title(tab_title)
         wks.clear(start='A1', end=None, fields='*')
-        wks.set_dataframe(data,(1,1), copy_index = True)
+        wks.set_dataframe(data,(1,1), copy_index = with_index)
     except:
         error_flag = True
 
-    # column formatting
-    wks.apply_format(ranges=['B:Z'], format_info={'numberFormat': {'type': 'NUMBER'}, "horizontalAlignment": 'RIGHT'})
+    if with_format == True:
+        # column formatting
+        wks.apply_format(ranges=['B:Z'], format_info={'numberFormat': {'type': 'NUMBER'}, "horizontalAlignment": 'RIGHT'})
 
-    # I built this to format Spend columns but we are not using those
-    # for c in ['D:D','G:G','J:J','M:M','P:P','S:S','V:V','Y:Y','AB:AB','AE:AE','AH:AH']:
-    #     try:
-    #         wks.apply_format(ranges=[c], format_info={'numberFormat': {'type': 'CURRENCY'}})
-    #     except:
-    #         None
-
-    #row formatting
-    wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP', "horizontalAlignment": 'RIGHT'})
+        #row formatting
+        wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP', "horizontalAlignment": 'RIGHT'})
 
 def make_single_table(data, content_columns, is_type):
     if is_type == True:
@@ -140,67 +145,90 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
     result = result.set_index('Date')
     result.columns=pd.MultiIndex.from_tuples([('','','','temp')])
 
-    for prod in product_types:
+    if len(product_types) == 0:
+        result['results'] = 0
+    else:
+        for prod in product_types:
 
-        # test   prod = product_types[0]
-    
-        this_type = db_results[db_results['ProductType']== prod]
-        products = list(set(this_type['Product']))
-        products.sort()
-        cols = content[prod]['cols']
-
-        # by product record
-        if content[prod]['product_level'] == 'product':
-            for product in products:
-
-                # test   product = products[0]
-
-                this_product = this_type[this_type['Product']== product]
-
-                # product    
-                this_product = make_single_table(this_product, cols, is_type = False)
-                # re-order columns
-                new_col_index = this_product.columns.reindex(cols, level=3)
-                this_product = this_product.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
-                # add to result
-                result = result.merge(right = this_product, on = 'Date', how = 'outer')
+            # test   prod = product_types[0]
         
-        # by product_type
-        if (content[prod]['product_level'] == 'type' or (content[prod]['product_level'] == 'product' and len(products) > 1)):
-            this_type = make_single_table(this_type, cols, is_type = True)
-            # re-order columns
-            new_col_index = this_type.columns.reindex(cols, level=3)
-            this_type = this_type.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
-            # add to result
-            result = result.merge(right = this_type, on = 'Date', how = 'outer')
+            this_type = db_results[db_results['ProductType']== prod]
+            products = list(set(this_type['Product']))
+            products.sort()
+            cols = content[prod]['cols']
 
-        # by regex group
-        if (content[prod]['product_level'] == 'regex'):
+            # by product record
+            if content[prod]['product_level'] == 'product':
+                for product in products:
 
-            group1 = this_type[this_type['Product'].str.contains(grouping['regex'])]
-            group1 = group1.assign(ProductType = grouping['label'])
-            group2 = this_type[~this_type['Product'].str.contains(grouping['regex'])]
-            group2 = group2.assign(ProductType = grouping['other_label'])
+                    # test   product = products[0]
 
-            this_group_1 = make_single_table(group1, cols, is_type = True)
-            this_group_2 = make_single_table(group2, cols, is_type = True)
+                    this_product = this_type[this_type['Product']== product]
 
-            # re-order columns
-            new_col_index = this_group_1.columns.reindex(cols, level=3)
-            this_group_1 = this_group_1.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
-            new_col_index = this_group_2.columns.reindex(cols, level=3)
-            this_group_2 = this_group_2.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+                    # product    
+                    this_product = make_single_table(this_product, cols, is_type = False)
+                    # re-order columns
+                    new_col_index = this_product.columns.reindex(cols, level=3)
+                    this_product = this_product.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+                    # add to result
+                    result = result.merge(right = this_product, on = 'Date', how = 'outer')
+            
+            # by product_type
+            if (content[prod]['product_level'] == 'type' or (content[prod]['product_level'] == 'product' and len(products) > 1)):
+                this_type = make_single_table(this_type, cols, is_type = True)
+                # re-order columns
+                new_col_index = this_type.columns.reindex(cols, level=3)
+                this_type = this_type.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+                # add to result
+                result = result.merge(right = this_type, on = 'Date', how = 'outer')
 
-            # add to result
-            result = result.merge(right = this_group_1, on = 'Date', how = 'outer')
-            result = result.merge(right = this_group_2, on = 'Date', how = 'outer')
+            # by regex group
+            if (content[prod]['product_level'] == 'regex'):
+
+                group1 = this_type[this_type['Product'].str.contains(grouping['regex'])]
+                group1 = group1.assign(ProductType = grouping['label'])
+                group2 = this_type[~this_type['Product'].str.contains(grouping['regex'])]
+                group2 = group2.assign(ProductType = grouping['other_label'])
+
+                this_group_1 = make_single_table(group1, cols, is_type = True)
+                this_group_2 = make_single_table(group2, cols, is_type = True)
+
+                # re-order columns
+                new_col_index = this_group_1.columns.reindex(cols, level=3)
+                this_group_1 = this_group_1.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+                new_col_index = this_group_2.columns.reindex(cols, level=3)
+                this_group_2 = this_group_2.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+
+                # add to result
+                result = result.merge(right = this_group_1, on = 'Date', how = 'outer')
+                result = result.merge(right = this_group_2, on = 'Date', how = 'outer')
 
     # tidy up
     result = result.fillna(value=0)
     result = result.drop(columns = [('','','','temp')])
     
     # to gsheet
-    write_to_gsheet(sheets_file, tab, result)
+    write_to_gsheet(sheets_file, tab, result, with_index = True, with_format = True)
+
+    return result
+
+#%%
+
+def extract_transform_load_aggregate(date_string, sheets_file, tab):
+
+    #test   date_string = month_string; tab = tab_string
+
+    # sql query
+    with sqlEngine.connect() as dbConnection:
+        query = select_query_aggregate(date_string)
+        db_results = pd.read_sql(sql=query, con=dbConnection)    
+
+    # tidy up
+    result = db_results.fillna(value=0)
+    result = result.reset_index(drop=True)
+    
+    # to gsheet
+    write_to_gsheet(sheets_file, tab, result, with_index = False, with_format = False)
 
     return result
 
@@ -241,7 +269,7 @@ prior_month_range = pd.date_range(start=prev_first, end=prev_last).date
 error_flag = False
 try:
     for gs in gsheets:
-        # test   gs = gsheets[8]
+        # test   gs = gsheets[0]
 
         prov = gs['provider']
         content = gs['content']
@@ -255,10 +283,16 @@ try:
         try:
             sheets_file.worksheets('title', tab_string)
         except:
-            extract_transform_load(prov, content, prior_month_string, prior_month_range, sheets_file, prior_tab_string)   
+            if prov == 'All':
+                extract_transform_load_aggregate(prior_month_string, sheets_file, prior_tab_string)   
+            else:
+                extract_transform_load(prov, content, prior_month_string, prior_month_range, sheets_file, prior_tab_string)   
 
         # then run today's as normal (it will create this month if it isn't there already)
-        extract_transform_load(prov, content, month_string, month_range, sheets_file, tab_string)   
+        if prov == 'All':
+            extract_transform_load_aggregate(month_string, sheets_file, tab_string)   
+        else:
+            extract_transform_load(prov, content, month_string, month_range, sheets_file, tab_string)   
 
 except:
     error_flag = True

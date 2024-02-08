@@ -16,8 +16,14 @@ with open(dev_env_file) as f:
         cred_info[key]=val
         
 cred_info['gsheets'] = [
-    #test file
+    
+    # this one drives a simple totals report for Neville
+    {'provider': 'All',
+     'content': '',
+     'gsheets_key': '1xznF3FANA1o2BK7U_XvhYKjaAjUWbTV0O21XV3rL7CI'
+    },
 
+    # this little piggy has special grouping logic
     {'provider': 'Lendi',
      'content': {'HomeLoanBrokerReferral': {'cols': ['Clicks', 'Spend'], 'product_level': 'regex'}
                  },
@@ -75,8 +81,19 @@ cred_info['gsheets'] = [
      'content': {'CarInsurance': {'cols': ['Clicks'], 'product_level': 'type'},
                  'HomeInsurance': {'cols': ['Clicks'], 'product_level': 'type'}
                  },
-     'gsheets_key': '1gIK0X_998BWh5OGMdR481hXsfwL4VCoo1eyAe1qeJUE'}  
+     'gsheets_key': '1gIK0X_998BWh5OGMdR481hXsfwL4VCoo1eyAe1qeJUE'},
 
+     {'provider': 'Rabobank',
+     'content': {'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'},
+                 'TermDeposit': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'}
+                 },
+     'gsheets_key': '1QOu93cI8mZ8LvjHpGQ96Hj2KVOPiLkSbXktpnqCQDEE'},
+
+     {'provider': 'Zoom',
+     'content': {'TravelInsurance': {'cols': ['Clicks'], 'product_level': 'type'}
+                 },
+     'gsheets_key': '1-5wI3IAOeioAFNSLw6Be9nEUSJW2uJ_jhfwqew2clh8'}
+     
 ]  
 
 
