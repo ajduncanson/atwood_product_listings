@@ -1,9 +1,7 @@
 
 """atwood product components
 
-Get response from Impact Radius API
-Save as xml file.
-Use this script to parse the response records into a csv table.
+Queries our AWS DBs and writes to the Product Listings on Atwood report in google sheets.
 
 Run this file from within the /code dir of the project
 
@@ -14,7 +12,7 @@ Run this file from within the /code dir of the project
 import os
 import pandas as pd
 import numpy as np
-import datetime
+from datetime import datetime, date, timedelta
 import pytz
 import pickle
 from sqlalchemy import create_engine
@@ -22,8 +20,10 @@ import pygsheets
 
 import atwood_product_listings_report_config as config
 
-time_zone = pytz.timezone('Australia/Sydney')
-filesavetime = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+tz = pytz.timezone('Australia/Sydney')
+filesavetime = datetime.now(tz).strftime("%Y%m%d_%H%M")
+today_date = date.today()
+pageview_date = (today_date - timedelta(days=7)).strftime("%Y-%m-%d")
 
 # file save details
 curpath = os.path.abspath(os.curdir)
@@ -34,6 +34,7 @@ if os.path.exists(data_proc_path + "success.txt"):
     os.remove(data_proc_path + "success.txt")
 if os.path.exists(data_proc_path + "error.txt"):
     os.remove(data_proc_path + "error.txt")
+
 
 #%%
 # functions
@@ -51,12 +52,8 @@ def sqlEngineCreator(user, pword, host, db):
 # connections
 gsheet_key = config.cred_info['gsheet_key']
 
-# %%
-# connection to current db list of endpoints
-sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
-
 #%%
-# get data from DB
+# define DB queries
 
 prod_table = {'HomeLoan': 'home_loans',
               'SavingsAccount': 'savings_accounts',
@@ -128,15 +125,44 @@ def select_query(prod):
     return query
 
 
+def pageview_query(d):
+    query = f"""
+    select 
+    REGEXP_REPLACE(page, '[?].*$', '') as page,
+    sum(case when (sub_channel = 'Search(Google)') or (sub_channel = 'Search(Bing)') then 1 else 0 end) as pageviews_search,
+    sum(case when (sub_channel = 'Organic') or (sub_channel = 'Direct') then 1 else 0 end) as pageviews_organic_direct,
+    sum(case when (sub_channel != 'Organic') and (sub_channel != 'Direct') and (sub_channel != 'Search') then 1 else 0 end) as pageviews_other_paid,
+    count(*) as pageviews_7_days      
+    FROM
+        ferris_tableau.rcd
+        where 
+        source = 'ga' 
+        and page not like '/gts%%'
+        and `date` >= '{d}'              
+    group by REGEXP_REPLACE(page, '[?].*$', '')
+    """
+    return query
+
+
+def test_query():
+    query = f"""
+    select * from ferris_tableau.provider_name
+    """
+    return query
+
 ### when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 365)) then 2
 
 #%%
+# get ethercat data
 
 product_types = prod_table.keys()
 ##['HomeLoan', 'SavingsAccount', 'CarLoan'] #, 'PL', 'TD']
 
 result = dict()
 error_flag = False
+
+# connection to current db list of endpoints
+sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
 
 try:
     for prod in product_types:
@@ -150,10 +176,19 @@ try:
 except:
     error_flag = True
 
-#%%
-    
-# for i in result:
-#     print(result[i].head())
+#%% 
+# get aircamel data
+
+# connection to db activity data
+sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
+
+try:  
+    with sqlEngine.connect() as dbConnection:
+        query = pageview_query(pageview_date)
+        pageview_result = pd.read_sql(sql=query, con=dbConnection)
+        pageview_result['page'] = ['https://mozo.com.au' + p for p in pageview_result['page']]
+except:
+    error_flag = True
 
 # %%
 # save to gsheets
@@ -170,9 +205,17 @@ try:
 
         # test    prod = 'HomeLoan'  
 
+        # append pageviews data to result
+        this_result = result[prod]
+        this_result = this_result.merge(pageview_result, how = 'left', left_on = 'page_link', right_on = 'page')
+        this_result = this_result.drop(columns=['page'])
+        this_result = this_result.fillna(0)
+
+
+        # write to gsheets
         wks = sh.worksheet_by_title(prod + ' raw data')
         wks.clear(start='A1', end=None, fields='*')
-        wks.set_dataframe(result[prod],(1,1))
+        wks.set_dataframe(this_result,(1,1))
 
     #updated the latest date
     wks = sh.worksheet_by_title('cover')

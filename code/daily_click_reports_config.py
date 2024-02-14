@@ -92,7 +92,13 @@ cred_info['gsheets'] = [
      {'provider': 'Zoom',
      'content': {'TravelInsurance': {'cols': ['Clicks'], 'product_level': 'type'}
                  },
-     'gsheets_key': '1-5wI3IAOeioAFNSLw6Be9nEUSJW2uJ_jhfwqew2clh8'}
+     'gsheets_key': '1-5wI3IAOeioAFNSLw6Be9nEUSJW2uJ_jhfwqew2clh8'},
+
+     {'provider': 'Macquarie',
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
+                 'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
+                 },
+     'gsheets_key': '1yxNSPpK33iUjxBjzOR2UF77h7Cj-K3uOSx2DZO2QvOA'}
      
 ]  
 
