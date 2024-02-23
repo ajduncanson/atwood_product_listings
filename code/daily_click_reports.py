@@ -98,7 +98,7 @@ def write_to_gsheet(sh, tab_title, data, with_index, with_format):
 
     if with_format == True:
         # column formatting
-        wks.apply_format(ranges=['B:Z'], format_info={'numberFormat': {'type': 'NUMBER'}, "horizontalAlignment": 'RIGHT'})
+        wks.apply_format(ranges=['B:Z'], format_info={"numberFormat": {"type": 'NUMBER', "pattern": "[=0]0;[>0]#,###"}, "horizontalAlignment": 'RIGHT'})
 
         #row formatting
         wks.apply_format(ranges=['3:3'], format_info={"wrapStrategy": 'WRAP', "horizontalAlignment": 'RIGHT'})
@@ -269,7 +269,7 @@ prior_month_range = pd.date_range(start=prev_first, end=prev_last).date
 error_flag = False
 try:
     for gs in gsheets:
-        # test   gs = gsheets[0]
+        # test   gs = gsheets[15]
 
         prov = gs['provider']
         content = gs['content']

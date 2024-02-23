@@ -108,9 +108,15 @@ cred_info['gsheets'] = [
      {'provider': 'Judo Bank',
      'content': {'TermDeposit': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
-     'gsheets_key': '1I8tWPmWyqhsYU7o5Htd8UDgSqwL4mF77H85DZg94rFo'}
+     'gsheets_key': '1I8tWPmWyqhsYU7o5Htd8UDgSqwL4mF77H85DZg94rFo'},
+
+    {'provider': 'Sucasa',
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
+                 },
+     'gsheets_key': '1gpmI8quI-JaRSHJ9aWNRa__c9tM1P4wCK6xL19r9Buw'}
      
 ]  
+
 
 # note that the Sheets files must be shared with pygsheets@mozo-private-dev.iam.gserviceaccount.com
 
