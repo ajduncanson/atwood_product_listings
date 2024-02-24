@@ -58,21 +58,27 @@ def table_name(productType, version = False):
         suffix = 's'
     return camelToSnake(productType) + suffix
 
-def select_query(prod, dates):
-
-
-#### TBC: this is where the query needs to go, to 
-    # new version records compared with old ones, or perhaps a product table diff
-    # union with pending field values
-    # join with list of gts_link_versions from the past x days
-
+def select_query(dates):
 
     query = f"""
-    select id, updated_at
-    from {table_name(prod, version = True)}
-	where {dates}  
-	;
+    select DATE(created_at) as created_at, max(created_at) as max, 
+    product_type, product_id, 
+    GROUP_CONCAT(DISTINCT field_name SEPARATOR', '), 
+    scheduled_at 
+    from pending_field_values
+    where {dates}
+    and product_type <> 'MppTab'
+    GROUP BY DATE(created_at), product_type, product_id
     """
+    # Check that manually entered changes really do all appear here
+    # now add provider and product NAMES
+    # join with list of gts_link_versions from the past x days
+    # join to product_group, and group on that?
+
+    # adjust the {dates} definition to pick up the most recent one from the gsheet?
+
+    # check logic about scheduled changes... alert when entered or when executed or both? Entered works, right?
+
     return query
 
 
@@ -94,18 +100,20 @@ def write_to_gsheet(sh, tab_title, data):
 
 def extract_transform_load(date_string, sheets_file, tab):
 
-    #test   date_string = month_string; tab = tab_string
+    #test   tab = tab_string
 
     # EXTRACT
     with sqlEngine.connect() as dbConnection:
-        query = select_query('HomeLoan', date_string)
+        query = select_query(date_string)
         db_results = pd.read_sql(sql=query, con=dbConnection)    
 
     # TRANSFORM
     # no NaNs
     result = db_results.fillna(value=0)
     # timstamps into strings
-    result['updated_at'] = [str(t) for t in result['updated_at']]
+    for c in ['created_at', 'scheduled_at', 'max']:
+        result[c] = [str(t) for t in result[c]]
+ 
     # tidy ups
     #result = result.reset_index(drop=True)
     
@@ -116,12 +124,9 @@ def extract_transform_load(date_string, sheets_file, tab):
 
 # %%
 # connections 
-sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
-
-sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
-
-
-
+#sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
+#sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
+sqlEngine = sqlEngineCreator('spacecoyote_username', 'spacecoyote_password', 'spacecoyote_host', 'spacecoyote_admin_db')
 
 gs_auth = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
 
@@ -133,15 +138,13 @@ gsheets = config.cred_info['gsheets']
 from datetime import date, timedelta
 
 today_date = datetime.date.today()
-yesterday_date = today_date - timedelta(days=1)
-this_first = today_date.replace(day=1)
-
 today_string = today_date.strftime("%Y-%m-%d")
-this_first_string = this_first.strftime("%Y-%m-%d")
 
-month_string = '`updated_at` >= "' + this_first_string + '" and `updated_at` < "' + today_string + '"'
+###TBC remove this test
 
-month_range = pd.date_range(start=this_first, end=yesterday_date).date
+today_string = '2024-02-23'
+
+date_string = 'created_at >= "' + today_string + '"'
 
 tab_string = 'Sheet1'
 
@@ -157,7 +160,7 @@ try:
         key = gs['gsheets_key']
         sheets_file = gs_auth.open_by_key(key)
 
-        extract_transform_load(month_string, sheets_file, tab_string)   
+        extract_transform_load(date_string, sheets_file, tab_string)   
  
 except:
     error_flag = True
