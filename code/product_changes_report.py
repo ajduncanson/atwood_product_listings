@@ -58,7 +58,7 @@ def table_name(productType, version = False):
         suffix = 's'
     return camelToSnake(productType) + suffix
 
-def select_query(dates):
+def select_query_pfv(date1):
 
     query = f"""
     select DATE(created_at) as created_at, max(created_at) as max, 
@@ -66,19 +66,28 @@ def select_query(dates):
     GROUP_CONCAT(DISTINCT field_name SEPARATOR', '), 
     scheduled_at 
     from pending_field_values
-    where {dates}
+    where created_at >= '{date1}'
     and product_type <> 'MppTab'
     GROUP BY DATE(created_at), product_type, product_id
     """
+    
+    ### TBC
     # Check that manually entered changes really do all appear here
     # now add provider and product NAMES
-    # join with list of gts_link_versions from the past x days
     # join to product_group, and group on that?
-
-    # adjust the {dates} definition to pick up the most recent one from the gsheet?
-
     # check logic about scheduled changes... alert when entered or when executed or both? Entered works, right?
 
+    return query
+
+
+def select_query_gts(date1):
+   
+    query = f"""
+    select product_type, product_id
+    from gts_link_versions
+    where created_at >= '{date1}'
+    and active = 1
+    """
     return query
 
 
@@ -96,57 +105,38 @@ def write_to_gsheet(sh, tab_title, data):
         error_flag = True
 
 
-#%%
-
-def extract_transform_load(date_string, sheets_file, tab):
-
-    #test   tab = tab_string
-
-    # EXTRACT
-    with sqlEngine.connect() as dbConnection:
-        query = select_query(date_string)
-        db_results = pd.read_sql(sql=query, con=dbConnection)    
-
-    # TRANSFORM
-    # no NaNs
-    result = db_results.fillna(value=0)
-    # timstamps into strings
-    for c in ['created_at', 'scheduled_at', 'max']:
-        result[c] = [str(t) for t in result[c]]
- 
-    # tidy ups
-    #result = result.reset_index(drop=True)
-    
-    # LOAD
-    write_to_gsheet(sheets_file, tab, result)
-
-    return result
 
 # %%
 # connections 
 #sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
-#sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
-sqlEngine = sqlEngineCreator('spacecoyote_username', 'spacecoyote_password', 'spacecoyote_host', 'spacecoyote_admin_db')
+sqlEngine_ethercat = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
+sqlEngine_spacecoyote = sqlEngineCreator('spacecoyote_username', 'spacecoyote_password', 'spacecoyote_host', 'spacecoyote_admin_db')
 
 gs_auth = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
 
 gsheets = config.cred_info['gsheets']
+tab_string = 'Sheet1'
+
 
 #%%
 # set date ranges
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
-today_date = datetime.date.today()
+today_date = date.today()
 today_string = today_date.strftime("%Y-%m-%d")
 
-###TBC remove this test
 
-today_string = '2024-02-23'
+### TBC 
+### look up the most recent date written to gsheets and then remove this test
+### safest method would be to record the latest datestamp in the success.txt
 
-date_string = 'created_at >= "' + today_string + '"'
+pfv_date = '2024-02-23'
 
-tab_string = 'Sheet1'
+
+# recent gts date
+gts_date = (datetime.strptime(pfv_date, "%Y-%m-%d") - timedelta(days=40)).strftime("%Y-%m-%d")
+
 
 
 #%%
@@ -160,14 +150,41 @@ try:
         key = gs['gsheets_key']
         sheets_file = gs_auth.open_by_key(key)
 
-        extract_transform_load(date_string, sheets_file, tab_string)   
+        # EXTRACT 1
+        with sqlEngine_spacecoyote.connect() as dbConnection:
+            query = select_query_pfv(pfv_date)
+            data_pfv = pd.read_sql(sql=query, con=dbConnection)    
+
+        # EXTRACT 2
+        with sqlEngine_ethercat.connect() as dbConnection:
+            query = select_query_gts(gts_date)
+            data_gts = pd.read_sql(sql=query, con=dbConnection)  
+
+        # TRANSFORM 1
+        # no NaNs
+        data_pfv = data_pfv.fillna(value=0)
+        # timstamps into strings
+        for c in ['created_at', 'scheduled_at', 'max']:
+            data_pfv[c] = [str(t) for t in data_pfv[c]]
+
+
+        # JOIN
+
+        ### TBC the join
+        
+ 
+        # tidy ups
+        #result = result.reset_index(drop=True)
+        
+        # LOAD
+        write_to_gsheet(sheets_file, tab_string, result)
  
 except:
     error_flag = True
 
 
 # %%
-# error flag file to drive shell script email reporting
+# success/error files to drive email, and latest success date file to ensure no gaps  
     
 if error_flag:
     if os.path.exists(data_proc_path + "success.txt"):
@@ -181,5 +198,12 @@ else:
     f = open(data_proc_path + "success.txt", "a")
     f.write("success " + filesavetime)
     f.close()
+    ### include code to save the last date successfully written to gsheets
+    f = open(data_proc_path + "success_date.txt", "a")
+    f.write('TBC')
+    f.close()
+
+
+
 
 # %%
