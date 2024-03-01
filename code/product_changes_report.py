@@ -58,12 +58,12 @@ def table_name(productType, version = False):
         suffix = 's'
     return camelToSnake(productType) + suffix
 
-def select_query_pfv(date1):
+def get_pfv(date1):
 
     query = f"""
     select DATE(created_at) as created_at, max(created_at) as max, 
     product_type, product_id, 
-    GROUP_CONCAT(DISTINCT field_name SEPARATOR', '), 
+    GROUP_CONCAT(DISTINCT field_name SEPARATOR', ') as changes, 
     scheduled_at 
     from pending_field_values
     where created_at >= '{date1}'
@@ -71,16 +71,15 @@ def select_query_pfv(date1):
     GROUP BY DATE(created_at), product_type, product_id
     """
     
+    with sqlEngine_spacecoyote.connect() as dbConnection:
+        result = pd.read_sql(sql=query, con=dbConnection)
+
     ### TBC
     # Check that manually entered changes really do all appear here
-    # now add provider and product NAMES
-    # join to product_group, and group on that?
-    # check logic about scheduled changes... alert when entered or when executed or both? Entered works, right?
 
-    return query
+    return result
 
-
-def select_query_gts(date1):
+def get_gts(date1):
    
     query = f"""
     select product_type, product_id
@@ -88,8 +87,41 @@ def select_query_gts(date1):
     where created_at >= '{date1}'
     and active = 1
     """
-    return query
+    with sqlEngine_ethercat.connect() as dbConnection:
+        result = pd.read_sql(sql=query, con=dbConnection)  
 
+    return result
+
+def get_product_details(dict):
+
+    all_products = pd.DataFrame()
+
+    for k,v in dict.items():
+        query = f"""
+        select '{k}' as product_type, 
+        a.provider_id, a.id as product_id, a.product_group_id,
+        p.name as provider_name, a.name as product_name
+        from {table_name(k, version = False)} a
+        left join providers p
+        on a.provider_id = p.id
+        where a.id in {'(' + ','.join([str(e) for e in v]) + ')'}
+        """
+        with sqlEngine_ethercat.connect() as dbConnection:
+            this_one = pd.read_sql(sql=query, con=dbConnection) 
+        all_products = pd.concat([all_products, this_one])
+
+    return all_products
+
+def get_provider_names():
+
+    query = f"""
+    select id, name as provider_name
+    from providers
+    """
+    with sqlEngine_ethercat.connect() as dbConnection:
+        providers = pd.read_sql(sql=query, con=dbConnection) 
+
+    return providers
 
 def write_to_gsheet(sh, tab_title, data):
     
@@ -100,7 +132,7 @@ def write_to_gsheet(sh, tab_title, data):
     try:
         data = data.values.tolist()
         wks = sh.worksheet_by_title(tab_title)
-        wks.append_table(data, start = 'A1', dimension = 'ROWS', overwrite = False)
+        wks.append_table(data, start = 'A2', dimension = 'ROWS', overwrite = False)
     except:
         error_flag = True
 
@@ -115,7 +147,7 @@ sqlEngine_spacecoyote = sqlEngineCreator('spacecoyote_username', 'spacecoyote_pa
 gs_auth = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
 
 gsheets = config.cred_info['gsheets']
-tab_string = 'Sheet1'
+tab_string = 'Sheet2'
 
 
 #%%
@@ -126,6 +158,7 @@ from datetime import date, datetime, timedelta
 today_date = date.today()
 today_string = today_date.strftime("%Y-%m-%d")
 
+run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 
 ### TBC 
 ### look up the most recent date written to gsheets and then remove this test
@@ -151,30 +184,41 @@ try:
         sheets_file = gs_auth.open_by_key(key)
 
         # EXTRACT 1
-        with sqlEngine_spacecoyote.connect() as dbConnection:
-            query = select_query_pfv(pfv_date)
-            data_pfv = pd.read_sql(sql=query, con=dbConnection)    
+        data_pfv = get_pfv(pfv_date)
 
         # EXTRACT 2
-        with sqlEngine_ethercat.connect() as dbConnection:
-            query = select_query_gts(gts_date)
-            data_gts = pd.read_sql(sql=query, con=dbConnection)  
+        data_gts = get_gts(gts_date)
 
-        # TRANSFORM 1
+        # LOOP EXTRACT PRODUCT & PROVIDER NAMES
+        product_dict = data_gts.groupby('product_type')['product_id'].apply(list).to_dict()
+        monetised_products = get_product_details(product_dict)
+
+
+        # TRANSFORM
         # no NaNs
         data_pfv = data_pfv.fillna(value=0)
+        data_pfv['run_timestamp'] = run_timestamp
         # timstamps into strings
-        for c in ['created_at', 'scheduled_at', 'max']:
+        for c in ['created_at', 'scheduled_at', 'max', 'run_timestamp']:
             data_pfv[c] = [str(t) for t in data_pfv[c]]
 
 
         # JOIN
+        result = pd.merge(left = data_pfv, right = monetised_products, how = 'inner', on = ['product_type', 'product_id'])
 
-        ### TBC the join
-        
+        # join to product_group, and group on that?
+
  
         # tidy ups
-        #result = result.reset_index(drop=True)
+        result = result.reset_index(drop=True)
+        result = result.sort_values(by = ['created_at', 'product_type', 'product_id', 'max'], axis = 0)
+        col_order = ['created_at', 'max', 'product_type', 
+                     'provider_name', 'product_name',
+                     'changes', 'scheduled_at',
+                     'run_timestamp', 
+                     'provider_id', 'product_group_id', 'product_id']
+        result = result[col_order]
+
         
         # LOAD
         write_to_gsheet(sheets_file, tab_string, result)

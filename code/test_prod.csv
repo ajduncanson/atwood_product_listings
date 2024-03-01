@@ -1,0 +1,74 @@
+,product_type,provider_id,product_id,provider_name,product_name
+0,BankAccount,21,69,Bendigo Bank,Everyday Account
+1,BankAccount,1608,482,ANZ Plus,ANZ Plus Transaction Account
+0,BusinessLoan,1262,117,Lumi,Unsecured Business Loan
+0,CarInsurance,281,14,QBE,Comprehensive Car Insurance
+1,CarInsurance,1288,91,ROLLiN',Comprehensive Car Insurance
+2,CarInsurance,1318,96,Kogan Insurance,Comprehensive Car Insurance
+0,CreditCard,85,22,NAB,Low Rate Card - Balance Transfer Offer
+1,CreditCard,85,498,NAB,Low Rate Business Card
+0,HomeInsurance,281,86,QBE,Home Cover - Buildings
+1,HomeInsurance,281,87,QBE,Home Cover - Contents
+2,HomeInsurance,281,88,QBE,Home Cover - Buildings & Contents
+3,HomeInsurance,1318,282,Kogan Insurance,Building Insurance
+4,HomeInsurance,1318,283,Kogan Insurance,Contents Insurance
+5,HomeInsurance,1318,284,Kogan Insurance,Building and Contents Insurance
+0,HomeLoan,71,1367,Macquarie,"Basic Home Loan (Fixed, Owner Occupier, Principal & Interest, LVR 70-80%)"
+1,HomeLoan,71,3185,Macquarie,"Basic Home Loan (Owner Occupier, LVR 70-80%, Principal & Interest)"
+2,HomeLoan,71,5340,Macquarie,"Offset Home Loan (Owner Occupier, LVR 60-70%, Principal & Interest)"
+3,HomeLoan,71,5342,Macquarie,"Basic Home Loan (Owner Occupier, LVR 60-70%, Principal & Interest)"
+4,HomeLoan,71,5768,Macquarie,"Basic Home Loan (Fixed, Owner Occupier, Principal & Interest, LVR<70%)"
+5,HomeLoan,71,6451,Macquarie,"Basic Home Loan (Owner Occupier, LVR<60%, Principal & Interest)"
+6,HomeLoan,71,6454,Macquarie,"Offset Home Loan (Owner Occupier, LVR<60%, Principal & Interest)"
+7,HomeLoan,7,7011,ANZ,"Fixed Rate (Owner Occupier, Principal & Interest, <80% LVR)"
+8,HomeLoan,172,7903,ubank,"Flex Home Loan (Owner Occupier, Principal & Interest, LVR <60%)"
+9,HomeLoan,172,7904,ubank,"Flex Home Loan (Owner Occupier, Principal & Interest, LVR 60-70%)"
+10,HomeLoan,172,7905,ubank,"Flex Home Loan (Owner Occupier, Principal & Interest, LVR 70-80%)"
+11,HomeLoan,172,7917,ubank,"Flex Home Loan (Fixed, Owner Occupier, Principal & Interest, LVR <60%)"
+12,HomeLoan,172,7918,ubank,"Flex Home Loan (Fixed, Owner Occupier, Principal & Interest, LVR 70-80%)"
+13,HomeLoan,172,7929,ubank,"Neat Home Loan (Owner Occupier, Principal & Interest, LVR <60%)"
+14,HomeLoan,172,7931,ubank,"Neat Home Loan (Owner Occupier, Principal & Interest, LVR 70-80%)"
+15,HomeLoan,1226,8022,Up,"Home Variable Rate (Owner Occupier, Principal & Interest)"
+16,HomeLoan,1226,8023,Up,"Home Fixed Rate (Owner Occupier, Principal & Interest)"
+17,HomeLoan,1004,8261,loans.com.au,"Solar Home Loan (Owner Occupier, Principal & Interest, LVR <90%)"
+18,HomeLoan,1004,8262,loans.com.au,"Solar Home Loan (Investment, Principal & Interest, LVR <90%)"
+19,HomeLoan,1240,8344,Athena,"Straight Up (Obliterate, Owner Occupier, Principal & Interest, <50% LVR)"
+20,HomeLoan,1240,8349,Athena,"Straight Up (Obliterate, Investor, Principal & Interest, <50% LVR)"
+21,HomeLoan,170,8719,Homestar,"Star Blue - SMSF Refinance Special (Principal and Interest, LVR<70%)"
+22,HomeLoan,1693,8851,Sucasa,"Ultra Low Rate <95% LVR (Owner Occupier, Principal & Interest)"
+0,HomeLoanBrokerReferral,1475,2,Lendi,Broker panel - refinance
+1,HomeLoanBrokerReferral,1475,3,Lendi,Broker panel - new home
+2,HomeLoanBrokerReferral,1475,7,Lendi,unsolicited popup - refinance
+3,HomeLoanBrokerReferral,1475,8,Lendi,unsolicited popup - new home
+4,HomeLoanBrokerReferral,1475,10,Lendi,Article broker referrals
+0,InternationalMoneyTransfer,1190,23,XE,International Money Transfer
+1,InternationalMoneyTransfer,1264,37,Revolut,International Money Transfer
+0,PersonalLoan,1004,339,loans.com.au,"New Car Loan - Special (Including Demo, Fixed, Secured)"
+1,PersonalLoan,277,344,NRMA,"Used Car Loan (Fixed, Secured)"
+2,PersonalLoan,1183,550,Harmoney,Unsecured Personal Loan (Fixed)
+3,PersonalLoan,1251,662,OurMoneyMarket,"Used Car Loan (Fixed, Secured, No vehicle age limit)"
+4,PersonalLoan,1004,803,loans.com.au,"New Car Loan - Special (Home Owner Discount, Including Demo, Variable, Secured)"
+5,PersonalLoan,1004,804,loans.com.au,"New Car Loan - Special (Including Demo, Variable, Secured)"
+6,PersonalLoan,277,893,NRMA,"New Car Loan (Fixed, Secured, Excellent Credit Score [832+])"
+7,PersonalLoan,1251,902,OurMoneyMarket,"New Car Loan (Fixed, Secured)"
+8,PersonalLoan,1183,916,Harmoney,Debt Consolidation Loan
+0,SavingsAccount,102,8,Rabobank,High Interest Savings Account
+1,SavingsAccount,19,342,Bankwest,Hero Saver
+2,SavingsAccount,21,536,Bendigo Bank,Reward Saver
+3,SavingsAccount,1608,575,ANZ Plus,ANZ Save
+4,SavingsAccount,96,595,Unity Bank,MoneyMAX Account
+5,SavingsAccount,1694,604,Zeller,Savings Account
+0,ShareAccount,1323,80,Superhero,Share Trading Account
+1,ShareAccount,1323,122,Superhero,Sponsored Deal
+2,ShareAccount,1007,124,CMC Markets,Share Investing
+0,Superannuation,1646,1,Australian Retirement Trust,Superannuation
+0,TermDeposit,19,652,Bankwest,Online Term Deposit
+1,TermDeposit,84,663,MyState Bank,Online Term Deposit
+2,TermDeposit,102,667,Rabobank,Term Deposit
+0,TravelInsurance,275,36,Australia Post,Comprehensive
+1,TravelInsurance,275,37,Australia Post,Basic
+2,TravelInsurance,275,475,Australia Post,Comprehensive Multi-Trip
+3,TravelInsurance,275,476,Australia Post,Basic Multi-Trip
+4,TravelInsurance,1185,546,Zoom,Comprehensive
+5,TravelInsurance,1185,547,Zoom,Standard
+6,TravelInsurance,1185,548,Zoom,Medical Only
