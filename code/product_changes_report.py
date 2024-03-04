@@ -17,6 +17,7 @@ import pytz
 import pickle
 from sqlalchemy import create_engine
 import pygsheets
+import requests
 
 import product_changes_report_config as config
 
@@ -164,7 +165,7 @@ run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
 ### look up the most recent date written to gsheets and then remove this test
 ### safest method would be to record the latest datestamp in the success.txt
 
-pfv_date = '2024-02-23'
+pfv_date = '2024-03-02'
 
 
 # recent gts date
@@ -246,8 +247,10 @@ else:
     f = open(data_proc_path + "success_date.txt", "a")
     f.write('TBC')
     f.close()
-
-
+    # send to webhook to trigger slack message
+    slack_webhook = 'https://hooks.slack.com/triggers/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'
+    body = '{"timestamp": "' + run_timestamp + '"}'
+    r = requests.post(url=slack_webhook, data=body)
 
 
 # %%
