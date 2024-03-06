@@ -113,8 +113,13 @@ cred_info['gsheets'] = [
     {'provider': 'Sucasa',
      'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
-     'gsheets_key': '1gpmI8quI-JaRSHJ9aWNRa__c9tM1P4wCK6xL19r9Buw'}
-     
+     'gsheets_key': '1gpmI8quI-JaRSHJ9aWNRa__c9tM1P4wCK6xL19r9Buw'},
+
+    {'provider': 'Athena',
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
+                 },
+     'gsheets_key': '1mTTOBit65I9Vk9-6n4V58iIRbcjpO4S5NbsLg-wf0Rs'}
+
 ]  
 
 
