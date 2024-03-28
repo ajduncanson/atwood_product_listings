@@ -212,6 +212,16 @@ try:
         this_result = this_result.fillna(0)
 
 
+        # TBC instead of (or as well as) writing each prod type to its own tab, we could union them here
+        # thus creating a single table of pages and products
+        # which could be used to filter the product_change query
+        # and written to the Product Changes google sheet in two forms:
+        ### filter the product changes list to only include those on recently changed atwood pages, and
+        ### create a summary action list of date, product, page, author
+
+        ### Q: how to combine the scripts?
+        ### Easiest answer is: don't. Create the union file here and save latest to drive. Product changes script reads the latest from file.
+
         # write to gsheets
         wks = sh.worksheet_by_title(prod + ' raw data')
         wks.clear(start='A1', end=None, fields='*')

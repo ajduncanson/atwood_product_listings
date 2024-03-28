@@ -59,13 +59,13 @@ def table_name(productType, version = False):
         suffix = 's'
     return camelToSnake(productType) + suffix
 
-def get_pfv(date1):
+def get_pfv_grouped(date1):
 
     query = f"""
     select DATE(created_at) as created_at, max(created_at) as max, 
     product_type, product_id, 
     GROUP_CONCAT(DISTINCT field_name SEPARATOR', ') as changes, 
-    scheduled_at 
+    scheduled_at
     from pending_field_values
     where created_at >= '{date1}'
     and product_type <> 'MppTab'
@@ -80,6 +80,32 @@ def get_pfv(date1):
 
     return result
 
+def get_pfv(date1):
+
+    query = f"""
+    select DATE(created_at) as created_at,  
+    product_type, product_id, 
+    field_name as changes, 
+    '' as previous_value,
+    CASE WHEN (product_type = 'TermDeposit' and field_name = 'interest_rate_tiers') THEN 'ask Research Team for the new interest rate'
+    ELSE REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(field_value, '(---( )?)', ''),'\\n','; '),''\';', '') END as new_value,
+    scheduled_at, created_at as added_to_admin,
+    'mozo.com.au' as product_page_link
+    from pending_field_values
+    where created_at >= '{date1}'
+    and product_type <> 'MppTab'
+    and field_name <> 'gts'
+    """
+    
+    with sqlEngine_spacecoyote.connect() as dbConnection:
+        result = pd.read_sql(sql=query, con=dbConnection)
+
+    ### TBC
+    # Check that manually entered changes really do all appear here
+
+    return result
+
+
 def get_gts(date1):
    
     query = f"""
@@ -93,7 +119,7 @@ def get_gts(date1):
 
     return result
 
-def get_product_details(dict):
+def get_product_name_ids(dict):
 
     all_products = pd.DataFrame()
 
@@ -126,7 +152,7 @@ def get_provider_names():
 
 def write_to_gsheet(sh, tab_title, data):
     
-# test      sh = sheets_file; tab_title = tab; data = result
+# test      sh = sheets_file; tab_title = 'Sheet2'; data = result
   
     # find worksheet and add new data to it
     # for append_table, the data needs to be a list of lists; the inner lists are the rows to add
@@ -159,7 +185,7 @@ from datetime import date, datetime, timedelta
 today_date = date.today()
 today_string = today_date.strftime("%Y-%m-%d")
 
-run_timestamp = datetime.now().strftime("%Y%m%d_%H%M")
+run_timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
 
 ### TBC 
 ### look up the most recent date written to gsheets and then remove this test
@@ -192,7 +218,7 @@ try:
 
         # LOOP EXTRACT PRODUCT & PROVIDER NAMES
         product_dict = data_gts.groupby('product_type')['product_id'].apply(list).to_dict()
-        monetised_products = get_product_details(product_dict)
+        monetised_products = get_product_name_ids(product_dict)
 
 
         # TRANSFORM
@@ -200,8 +226,11 @@ try:
         data_pfv = data_pfv.fillna(value=0)
         data_pfv['run_timestamp'] = run_timestamp
         # timstamps into strings
-        for c in ['created_at', 'scheduled_at', 'max', 'run_timestamp']:
+        for c in ['created_at']:
             data_pfv[c] = [str(t) for t in data_pfv[c]]
+        for c in ['scheduled_at', 'added_to_admin']:
+            data_pfv[c] = [t.strftime("%Y-%m-%d_%H%M") if t != 0 else '' for t in data_pfv[c]]
+         
 
 
         # JOIN
@@ -212,12 +241,13 @@ try:
  
         # tidy ups
         result = result.reset_index(drop=True)
-        result = result.sort_values(by = ['created_at', 'product_type', 'product_id', 'max'], axis = 0)
-        col_order = ['created_at', 'max', 'product_type', 
+        result = result.sort_values(by = ['created_at', 'product_type', 'provider_name', 'product_name', 'changes', 'added_to_admin'], axis = 0)
+        col_order = ['created_at', 'product_type', 
                      'provider_name', 'product_name',
-                     'changes', 'scheduled_at',
+                     'changes', 'previous_value', 'new_value', 
+                     'scheduled_at', 'added_to_admin',
                      'run_timestamp', 
-                     'provider_id', 'product_group_id', 'product_id']
+                     'provider_id', 'product_group_id', 'product_id', 'product_page_link']
         result = result[col_order]
 
         
