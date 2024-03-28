@@ -28,7 +28,7 @@ pageview_date = (today_date - timedelta(days=7)).strftime("%Y-%m-%d")
 # file save details
 curpath = os.path.abspath(os.curdir)
 data_raw_path = curpath + '/../data/raw/'
-data_proc_path = curpath + '/../data/processed/'
+data_proc_path = curpath + '/../data/atwood_products/'
 
 if os.path.exists(data_proc_path + "success.txt"):
     os.remove(data_proc_path + "success.txt")
@@ -199,37 +199,35 @@ try:
     gc = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
     sh = gc.open_by_key(gsheet_key)
     # note that the Sheets file must be shared with pygsheets@mozo-private-dev.iam.gserviceaccount.com
-
     #update the raw data sheets, starting at cell A1. 
+
+    #also create union file to be used by product changes report
+    result_union = pd.DataFrame()
+
     for prod in product_types:
 
         # test    prod = 'HomeLoan'  
 
-        # append pageviews data to result
         this_result = result[prod]
         this_result = this_result.merge(pageview_result, how = 'left', left_on = 'page_link', right_on = 'page')
         this_result = this_result.drop(columns=['page'])
         this_result = this_result.fillna(0)
-
-
-        # TBC instead of (or as well as) writing each prod type to its own tab, we could union them here
-        # thus creating a single table of pages and products
-        # which could be used to filter the product_change query
-        # and written to the Product Changes google sheet in two forms:
-        ### filter the product changes list to only include those on recently changed atwood pages, and
-        ### create a summary action list of date, product, page, author
-
-        ### Q: how to combine the scripts?
-        ### Easiest answer is: don't. Create the union file here and save latest to drive. Product changes script reads the latest from file.
 
         # write to gsheets
         wks = sh.worksheet_by_title(prod + ' raw data')
         wks.clear(start='A1', end=None, fields='*')
         wks.set_dataframe(this_result,(1,1))
 
+        # append pageviews data to result_union
+        this_result['product_type'] = prod
+        result_union = pd.concat([result_union, this_result], axis = 0)
+
     #updated the latest date
     wks = sh.worksheet_by_title('cover')
     wks.update_value((2,3), filesavetime)
+
+    #save the latest union of atwood products
+    result_union.to_csv(data_proc_path + 'atwood_products_latest.csv')
 
 except:
     error_flag = True
@@ -237,10 +235,10 @@ except:
 # %%
 # save pickle
 
-fname = 'atwood_product_listings'
-pname = data_proc_path + fname + '_' + filesavetime + '.pkl'
-with open(pname, 'wb') as file: 
-    pickle.dump(result, file) 
+# fname = 'atwood_product_listings'
+# pname = data_proc_path + fname + '_' + filesavetime + '.pkl'
+# with open(pname, 'wb') as file: 
+#     pickle.dump(result, file) 
 
 
 # %%

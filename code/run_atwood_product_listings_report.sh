@@ -9,7 +9,7 @@ echo '\n'$start_time'\tStart' >> $log_file
 echo 'Running atwood product listing reports now' >> $log_file
 ~/.pyenv/versions/cdr-project-env/bin/python3 atwood_product_listings_report.py >> $log_file 2>&1
 
-if [[ $(find ../data/processed/success.txt -mmin -5 -print) ]]
+if [[ $(find ../data/atwood_products/success.txt -mmin -5 -print) ]]
 then
   echo 'Report success' >> $log_file
   mail -s "Atwood product listings report" analytics@mozo.com.au <<< "Atwood report ran sucessfully."  

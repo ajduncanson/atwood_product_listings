@@ -236,7 +236,15 @@ try:
         # JOIN
         result = pd.merge(left = data_pfv, right = monetised_products, how = 'inner', on = ['product_type', 'product_id'])
 
-        # join to product_group, and group on that?
+
+        ### TBC ###
+
+        # atwood = read csv /data/atwood_products/atwood_products_latest.csv
+        # get rid of atwood recency 1 and leave recency 3 (<180 days since last update)
+        # inner join result and atwood, on product type and product id, leaving only the changes on monetised pages on atwood
+
+        # copy this and select the columns needed for product changes and write to gsheets
+        # second copy selecting only unique product type, id and page; wriet the to the other tab of the gsheet and it becaomse the action list
 
  
         # tidy ups
