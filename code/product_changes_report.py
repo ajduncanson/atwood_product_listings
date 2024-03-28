@@ -103,6 +103,12 @@ def get_pfv(date1):
     ### TBC
     # Check that manually entered changes really do all appear here
 
+###### TBC #########
+        # We should exclude:
+            # pfv changes that have 'state' = 'pending' with 'scheduled_at' as 'NULL'  as these have not been committed yet
+            # pfv changes that have 'state' = 'canceled' (yes this is spelt incorrectly)
+        # And we need to resolve what to do about sitautions where we schedule a change and then subsequently change the state to canceled.. it may already be in the change report.
+
     return result
 
 
