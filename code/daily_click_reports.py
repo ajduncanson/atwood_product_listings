@@ -140,10 +140,13 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
     product_types = [t for t in product_types if t in content.keys()]
     product_types.sort()
 
+
+
     # create an empty, with the right index and MultiIndex columns to be able to merge products
-    result = pd.DataFrame({'Date': date_range, 'temp': date_range})
-    result = result.set_index('Date')
-    result.columns=pd.MultiIndex.from_tuples([('','','','temp')])
+    result = pd.DataFrame()
+            # result = pd.DataFrame({'Date': date_range, 'temp': date_range})
+            # result = result.set_index('Date')
+            # result.columns=pd.MultiIndex.from_tuples([('','','','temp')])
 
     if len(product_types) == 0:
         result['results'] = 0
@@ -171,7 +174,10 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
                     new_col_index = this_product.columns.reindex(cols, level=3)
                     this_product = this_product.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
                     # add to result
-                    result = result.merge(right = this_product, on = 'Date', how = 'outer')
+                    if len(result) == 0:
+                        result = this_product
+                    else:
+                        result = result.merge(right = this_product, on = 'Date', how = 'outer')
             
             # by product_type
             if (content[prod]['product_level'] == 'type' or (content[prod]['product_level'] == 'product' and len(products) > 1)):
@@ -180,7 +186,10 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
                 new_col_index = this_type.columns.reindex(cols, level=3)
                 this_type = this_type.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
                 # add to result
-                result = result.merge(right = this_type, on = 'Date', how = 'outer')
+                if len(result) == 0:
+                    result = this_type
+                else:        
+                    result = result.merge(right = this_type, on = 'Date', how = 'outer')
 
             # by regex group
             if (content[prod]['product_level'] == 'regex'):
@@ -190,22 +199,28 @@ def extract_transform_load(prov, content, date_string, date_range, sheets_file, 
                 group2 = this_type[~this_type['Product'].str.contains(grouping['regex'])]
                 group2 = group2.assign(ProductType = grouping['other_label'])
 
-                this_group_1 = make_single_table(group1, cols, is_type = True)
-                this_group_2 = make_single_table(group2, cols, is_type = True)
+                if len(group1) >0:
+                    this_group_1 = make_single_table(group1, cols, is_type = True)
+                    new_col_index = this_group_1.columns.reindex(cols, level=3)
+                    this_group_1 = this_group_1.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
 
-                # re-order columns
-                new_col_index = this_group_1.columns.reindex(cols, level=3)
-                this_group_1 = this_group_1.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
-                new_col_index = this_group_2.columns.reindex(cols, level=3)
-                this_group_2 = this_group_2.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
+                if len(group2) >0:
+                    this_group_2 = make_single_table(group2, cols, is_type = True)
+                    new_col_index = this_group_2.columns.reindex(cols, level=3)
+                    this_group_2 = this_group_2.reindex(columns = new_col_index[0]) #new_col_index is a single item tuple
 
                 # add to result
-                result = result.merge(right = this_group_1, on = 'Date', how = 'outer')
-                result = result.merge(right = this_group_2, on = 'Date', how = 'outer')
+                if len(result) == 0 and len(group1) >0:
+                    result = this_group_1
+                elif len(group1) >0:                  
+                    result = result.merge(right = this_group_1, on = 'Date', how = 'outer')
+                if len(result) == 0 and len(group2) >0:
+                    result = this_group_2
+                elif len(group2) >0: 
+                    result = result.merge(right = this_group_2, on = 'Date', how = 'outer')
 
     # tidy up
     result = result.fillna(value=0)
-    result = result.drop(columns = [('','','','temp')])
     
     # to gsheet
     write_to_gsheet(sheets_file, tab, result, with_index = True, with_format = True)

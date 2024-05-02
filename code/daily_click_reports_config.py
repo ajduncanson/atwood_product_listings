@@ -45,10 +45,10 @@ cred_info['gsheets'] = [
                  },
      'gsheets_key': '1f4qC3I9-TWnFA41ZjslWtYw45COX_Oim5MABYRKrjNo'},
 
-    # {'provider': 'Bendigo Bank',
-    #  'content': {'HomeLoan': {'cols': ['Clicks', 'Apps', 'Spend'], 'product_level': 'type'}
-    #              },
-    #  'gsheets_key': '1Lw-p5ocXlLTw8gv9Nw0gXhWq2k_OhWCY6qoTtVjWJo0'},
+    {'provider': 'Bendigo Bank',
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
+                 },
+     'gsheets_key': '1p3oa5iWC7ntf_BvDq6mqbRhHEzVvqDWpINRiFAuV5-g'},
 
     {'provider': 'Bendigo Bank',
      'content': {'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
@@ -68,7 +68,8 @@ cred_info['gsheets'] = [
      'gsheets_key': '1nhz0sp-y3tp8caPJB8CF-RBdC1iAmJCAHe5Af9sxe_s'},
 
      {'provider': 'AMP Bank',
-     'content': {'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
+     'content': {'BankAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'},
+                 'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
      'gsheets_key': '1zcWeCHy8q8EwcAb492pEsJNL8cSoVyxjbsd-63hjB08'},
 
@@ -106,7 +107,7 @@ cred_info['gsheets'] = [
      'gsheets_key': '1e6M4XxeSYbWhf-8ISjd3_IS24vyFD59omTtEkNKmQhQ'},
 
      {'provider': 'Judo Bank',
-     'content': {'TermDeposit': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
+     'content': {'TermDeposit': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'}
                  },
      'gsheets_key': '1I8tWPmWyqhsYU7o5Htd8UDgSqwL4mF77H85DZg94rFo'},
 
@@ -119,7 +120,13 @@ cred_info['gsheets'] = [
      'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
                  },
      'gsheets_key': '1mTTOBit65I9Vk9-6n4V58iIRbcjpO4S5NbsLg-wf0Rs'}
+     ,
 
+     {'provider': 'Bankwest',
+     'content': {'TermDeposit': {'cols': ['Clicks', 'Spend'], 'product_level': 'type'}
+                 },
+     'gsheets_key': '1yxZgXEfoGUwODAsT6L9aX-YX9d9PioaYuqoNEvrVNX0'}
+    
 ]  
 
 
