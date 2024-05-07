@@ -133,7 +133,7 @@ def get_product_name_ids(dict):
         query = f"""
         select '{k}' as product_type, 
         a.provider_id, a.id as product_id, a.product_group_id,
-        p.name as provider_name, a.name as product_name
+        p.name as provider, a.name as product_name
         from {table_name(k, version = False)} a
         left join providers p
         on a.provider_id = p.id
@@ -148,7 +148,7 @@ def get_product_name_ids(dict):
 def get_provider_names():
 
     query = f"""
-    select id, name as provider_name
+    select id, name as provider
     from providers
     """
     with sqlEngine_ethercat.connect() as dbConnection:
@@ -180,7 +180,6 @@ sqlEngine_spacecoyote = sqlEngineCreator('spacecoyote_username', 'spacecoyote_pa
 gs_auth = pygsheets.authorize(service_file='../auth/mozo-private-dev-19de22e18578.json')
 
 gsheets = config.cred_info['gsheets']
-tab_string = 'Sheet2'
 
 
 #%%
@@ -197,7 +196,7 @@ run_timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
 ### look up the most recent date written to gsheets and then remove this test
 ### safest method would be to record the latest datestamp in the success.txt
 
-pfv_date = '2024-03-02'
+pfv_date = '2024-05-06'
 
 
 # recent gts date
@@ -255,9 +254,9 @@ try:
  
         # tidy ups
         result = result.reset_index(drop=True)
-        result = result.sort_values(by = ['created_at', 'product_type', 'provider_name', 'product_name', 'changes', 'added_to_admin'], axis = 0)
+        result = result.sort_values(by = ['created_at', 'product_type', 'provider', 'product_name', 'changes', 'added_to_admin'], axis = 0)
         col_order = ['created_at', 'product_type', 
-                     'provider_name', 'product_name',
+                     'provider', 'product_name',
                      'changes', 'previous_value', 'new_value', 
                      'scheduled_at', 'added_to_admin',
                      'run_timestamp', 
@@ -266,11 +265,64 @@ try:
 
         
         # LOAD
-        write_to_gsheet(sheets_file, tab_string, result)
- 
+        write_to_gsheet(sheets_file, 'full change list', result)
+
+    # end of (the unnecessary) for gsheets loop
+        
+# bring in the latest atwood products csv
+    
+    atwood = pd.read_csv(curpath + '/../data/atwood_products/atwood_products_latest.csv')
+
+# create list of products with data changes
+
+    join_cols = ['product_type', 'provider', 'product_name']
+    changes = result.drop_duplicates(subset=join_cols)[join_cols]
+
+    changed_fields = None
+
+    for i, row in changes.iterrows():
+        
+        row_df = pd.DataFrame(row).transpose()
+        subset = row_df.merge(right=result, on = join_cols)
+        changed = ', '.join(subset['changes'])
+        if changed is None:
+            changed = ' '
+        if changed_fields is None:
+            changed_fields = [changed]
+        else:
+            changed_fields.append(changed)
+
+    changes['changed_fields'] = changed_fields
+
+# join atwood listings and products with changes to make worklist
+
+    #merge
+    worklist = atwood.merge(right = changes, how = 'left', on = join_cols)
+
+    #drop anything without changes
+    worklist = worklist.dropna(axis = 0, subset=['changed_fields'])
+
+    #drop anything not recent enough
+    worklist = worklist[worklist['recency']==3]
+
+    #add in gts_link info
+    worklist['gts_live'] = 'yes'
+
+    #specify final report columns & sort
+    worklist = worklist[join_cols + ['changed_fields', 'page_link', 'page_author', 'gts_live', 'pageviews_7_days', 'page_last_updated']]
+    worklist = worklist.sort_values(by = join_cols + ['gts_live', 'pageviews_7_days'],
+                                    ascending = [True, True, True, False, False])
+
+    worklist['added_to_worklist'] = run_timestamp
+
+# write to worklist gsheet
+    
+    write_to_gsheet(sheets_file, 'worklist', worklist)
+
+# set error flag if the above failed
+    
 except:
     error_flag = True
-
 
 # %%
 # success/error files to drive email, and latest success date file to ensure no gaps  
@@ -298,3 +350,4 @@ else:
 
 
 # %%
+
