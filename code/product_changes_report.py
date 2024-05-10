@@ -399,7 +399,7 @@ else:
     # send to webhook to trigger slack message
     if number_of_pages > 0:
         slack_webhook = 'https://hooks.slack.com/triggers/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'
-        body = '{"timestamp": "' + run_timestamp + '", "pages": "' + str(number_of_pages) + '", "changes": "' + str(number_of_changes) +'"}'
+        body = '{"changes": "' + str(number_of_changes) + '", "pages": "' + str(number_of_pages) + '", "timestamp": "' + run_timestamp +'"}'
         r = requests.post(url=slack_webhook, data=body)
 
 
