@@ -1,7 +1,9 @@
 
 """product changes report
 
-get products that have had changes made or scheduled and populate gsheets
+get products that have had changes made or scheduled, 
+identify where they are inserted into Atwood pages and changes are required
+and populate gsheets
 
 Run this file from within the /code dir of the project
 
@@ -75,49 +77,44 @@ def get_pfv_grouped(date1):
     with sqlEngine_spacecoyote.connect() as dbConnection:
         result = pd.read_sql(sql=query, con=dbConnection)
 
-    ### TBC
-    # Check that manually entered changes really do all appear here
-
     return result
 
-def get_pfv(date1):
+
+def get_pfv(datetime1):
 
     query = f"""
     select DATE(created_at) as created_at,  
     product_type, product_id, 
     field_name as changes, 
-    '' as previous_value,
     CASE WHEN (product_type = 'TermDeposit' and field_name = 'interest_rate_tiers') THEN 'ask Research Team for the new interest rate'
     ELSE REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(field_value, '(---( )?)', ''),'\\n','; '),''\';', '') END as new_value,
     scheduled_at, created_at as added_to_admin,
     'mozo.com.au' as product_page_link
     from pending_field_values
-    where created_at >= '{date1}'
+    where created_at > '{datetime1}'
     and product_type <> 'MppTab'
     and field_name <> 'gts'
+    and (state <> 'pending' or (state = 'pending' and scheduled_at is not NULL))
+    and state <> 'canceled'
     """
     
     with sqlEngine_spacecoyote.connect() as dbConnection:
         result = pd.read_sql(sql=query, con=dbConnection)
 
-    ### TBC
-    # Check that manually entered changes really do all appear here
-
-###### TBC #########
-        # We should exclude:
+        # The above excludes:
             # pfv changes that have 'state' = 'pending' with 'scheduled_at' as 'NULL'  as these have not been committed yet
             # pfv changes that have 'state' = 'canceled' (yes this is spelt incorrectly)
-        # And we need to resolve what to do about sitautions where we schedule a change and then subsequently change the state to canceled.. it may already be in the change report.
+        # But does not allow for situations where we schedule a change and then subsequently change the state to canceled.. it may already be in the change report.
 
     return result
 
 
-def get_gts(date1):
+def get_gts(datetime1):
    
     query = f"""
     select product_type, product_id
     from gts_link_versions
-    where created_at >= '{date1}'
+    where created_at > '{datetime1}'
     and active = 1
     """
     with sqlEngine_ethercat.connect() as dbConnection:
@@ -132,11 +129,13 @@ def get_product_name_ids(dict):
     for k,v in dict.items():
         query = f"""
         select '{k}' as product_type, 
-        a.provider_id, a.id as product_id, a.product_group_id,
+        a.provider_id, a.id as product_id, a.product_group_id, pg.name as product_group_name,
         p.name as provider, a.name as product_name
         from {table_name(k, version = False)} a
         left join providers p
         on a.provider_id = p.id
+        left join product_groups pg
+        on a.product_group_id = pg.id
         where a.id in {'(' + ','.join([str(e) for e in v]) + ')'}
         """
         with sqlEngine_ethercat.connect() as dbConnection:
@@ -156,9 +155,44 @@ def get_provider_names():
 
     return providers
 
+
+def make_product_page_url(product_type, provider, product_group, id):
+
+    product_page_dict = {'HomeLoan': '/home-loans/information',
+                         'TermDeposit': '/term-deposits/information', 
+                         'SavingsAccount': '/savings-accounts/information', 
+                         'BankAccount': '/bank-accounts/information', 
+                         'PersonalLoan': '/personal-loans/information', 
+                         'CreditCard': '/credit-cards/information',
+                         'CarInsurance': '/insurance/car-insurance',
+                         'HomeInsurance': '/insurance/home-insurance',
+                         'TravelInsurance': '/insurance/travel-insurance',
+                         'ShareAccount': '/share-trading',
+                         'PrepaidTravelCard': '/travel-money/prepaid-travel-cards',
+                         'MarginLoan': '/margin-loans',
+                         'BusinessLoan': '/small-business/business-loans/information'
+                         }
+    
+    product_page_whole_provider_dict = {'PetInsurance': '/insurance/pet-insurance',
+                                        'InternationalMoneyTransfer': '/international-money-transfer/resources/providers'
+                                        } 
+    
+    provider = provider.replace(' ', '-').lower()
+    product_group = product_group.replace(' ', '-').lower()
+
+    if product_type in product_page_dict.keys():
+        result = 'mozo.com.au' + product_page_dict[product_type] + '/' +  provider + '/' + product_group + '/' + id
+    elif product_type in product_page_whole_provider_dict.keys():
+        result = 'mozo.com.au' + product_page_whole_provider_dict[product_type] + '/' +  provider
+    else:
+        result = ' '
+    return result
+
+
 def write_to_gsheet(sh, tab_title, data):
     
-# test      sh = sheets_file; tab_title = 'Sheet2'; data = result
+    # test      sh = sheets_file; tab_title = 'details'; data = filtered_details
+    # test      sh = sheets_file; tab_title = 'worklist'; data = worklist
   
     # find worksheet and add new data to it
     # for append_table, the data needs to be a list of lists; the inner lists are the rows to add
@@ -187,21 +221,8 @@ gsheets = config.cred_info['gsheets']
 
 from datetime import date, datetime, timedelta
 
-today_date = date.today()
-today_string = today_date.strftime("%Y-%m-%d")
-
-run_timestamp = datetime.now().strftime("%Y-%m-%d_%H%M")
-
-### TBC 
-### look up the most recent date written to gsheets and then remove this test
-### safest method would be to record the latest datestamp in the success.txt
-
-pfv_date = '2024-05-06'
-
-
-# recent gts date
-gts_date = (datetime.strptime(pfv_date, "%Y-%m-%d") - timedelta(days=40)).strftime("%Y-%m-%d")
-
+run_time = datetime.now()
+run_timestamp = run_time.strftime("%Y-%m-%d %H:%M")
 
 
 #%%
@@ -209,66 +230,62 @@ gts_date = (datetime.strptime(pfv_date, "%Y-%m-%d") - timedelta(days=40)).strfti
 
 error_flag = False
 try:
-    for gs in gsheets:
-        # test   gs = gsheets[0]
+    gs = gsheets[0]
 
-        key = gs['gsheets_key']
-        sheets_file = gs_auth.open_by_key(key)
+    key = gs['gsheets_key']
+    sheets_file = gs_auth.open_by_key(key)
 
-        # EXTRACT 1
-        data_pfv = get_pfv(pfv_date)
+    # look up the added_to_admin date of the most recent date written to gsheets
+    wks = sheets_file.worksheet('title','details')
+    cells = wks.get_col(col = 8,returnas='matrix', include_tailing_empty=False)
 
-        # EXTRACT 2
-        data_gts = get_gts(gts_date)
+    # use that timestamp as the starting point for this query
+    ##test pfv_date = '2024-05-07 08:00:00'
+    pfv_date = cells[len(cells)-1]
 
-        # LOOP EXTRACT PRODUCT & PROVIDER NAMES
-        product_dict = data_gts.groupby('product_type')['product_id'].apply(list).to_dict()
-        monetised_products = get_product_name_ids(product_dict)
+    # recent gts date = 40 days prior
+    gts_date = (datetime.strptime(pfv_date, "%Y-%m-%d %H:%M:%S") - timedelta(days=40)).strftime("%Y-%m-%d")
+
+    # EXTRACT 1
+    data_pfv = get_pfv(pfv_date)
+
+    # EXTRACT 2
+    data_gts = get_gts(gts_date)
+
+    # LOOP EXTRACT PRODUCT & PROVIDER NAMES
+    product_dict = data_gts.groupby('product_type')['product_id'].apply(list).to_dict()
+    monetised_products = get_product_name_ids(product_dict)
+
+    # TRANSFORM
+    # no NaNs
+    data_pfv = data_pfv.fillna(value=0)
+    data_pfv['run_timestamp'] = run_time
+
+    # JOIN
+    result = pd.merge(left = data_pfv, right = monetised_products, how = 'inner', on = ['product_type', 'product_id'])
+
+    # tidy ups
+    result = result.reset_index(drop=True)
+    result = result.sort_values(by = ['created_at', 'product_type', 'provider', 'product_name', 'changes', 'added_to_admin'], axis = 0)
+    col_order = ['created_at', 'product_type', 
+                    'provider', 'product_name',
+                    'changes', 
+                    #'previous_value', 
+                    'new_value', 
+                    'scheduled_at', 'added_to_admin',
+                    'run_timestamp', 
+                    'provider_id', 'product_group_id', 'product_group_name', 'product_id', 'product_page_link']
+    result = result[col_order]
 
 
-        # TRANSFORM
-        # no NaNs
-        data_pfv = data_pfv.fillna(value=0)
-        data_pfv['run_timestamp'] = run_timestamp
-        # timstamps into strings
-        for c in ['created_at']:
-            data_pfv[c] = [str(t) for t in data_pfv[c]]
-        for c in ['scheduled_at', 'added_to_admin']:
-            data_pfv[c] = [t.strftime("%Y-%m-%d_%H%M") if t != 0 else '' for t in data_pfv[c]]
-         
+# create the product_page_link
+    
+    result['product_page_link'] = [
+        make_product_page_url(row['product_type'], row['provider'], row['product_group_name'], row['product_group_id']) 
+        for i,row in result.iterrows()
+        ]
 
-
-        # JOIN
-        result = pd.merge(left = data_pfv, right = monetised_products, how = 'inner', on = ['product_type', 'product_id'])
-
-
-        ### TBC ###
-
-        # atwood = read csv /data/atwood_products/atwood_products_latest.csv
-        # get rid of atwood recency 1 and leave recency 3 (<180 days since last update)
-        # inner join result and atwood, on product type and product id, leaving only the changes on monetised pages on atwood
-
-        # copy this and select the columns needed for product changes and write to gsheets
-        # second copy selecting only unique product type, id and page; wriet the to the other tab of the gsheet and it becaomse the action list
-
- 
-        # tidy ups
-        result = result.reset_index(drop=True)
-        result = result.sort_values(by = ['created_at', 'product_type', 'provider', 'product_name', 'changes', 'added_to_admin'], axis = 0)
-        col_order = ['created_at', 'product_type', 
-                     'provider', 'product_name',
-                     'changes', 'previous_value', 'new_value', 
-                     'scheduled_at', 'added_to_admin',
-                     'run_timestamp', 
-                     'provider_id', 'product_group_id', 'product_id', 'product_page_link']
-        result = result[col_order]
-
-        
-        # LOAD
-        write_to_gsheet(sheets_file, 'full change list', result)
-
-    # end of (the unnecessary) for gsheets loop
-        
+    
 # bring in the latest atwood products csv
     
     atwood = pd.read_csv(curpath + '/../data/atwood_products/atwood_products_latest.csv')
@@ -309,15 +326,50 @@ try:
     worklist['gts_live'] = 'yes'
 
     #specify final report columns & sort
-    worklist = worklist[join_cols + ['changed_fields', 'page_link', 'page_author', 'gts_live', 'pageviews_7_days', 'page_last_updated']]
+
+    report_cols = join_cols + ['changed_fields', 'page_link', 'page_author', 'gts_live', 'pageviews_7_days', 'page_last_updated']
+    worklist = worklist[report_cols]
+
+    #join rows where mulitple authors
+    worklist['page_author'] = worklist.groupby([r for r in report_cols if r not in ['page_author']])['page_author'].transform(lambda x: ','.join(x))
+    worklist = worklist.drop_duplicates(ignore_index=True)
+
     worklist = worklist.sort_values(by = join_cols + ['gts_live', 'pageviews_7_days'],
                                     ascending = [True, True, True, False, False])
+    
+    worklist['run_time'] = run_time
 
-    worklist['added_to_worklist'] = run_timestamp
+
+# make detail list including only the atwood worklist products
+    
+    #merge
+    filtered_details = result.merge(right = worklist, how = 'left', on = join_cols)
+
+    #drop anything not in worklist
+    filtered_details = filtered_details.dropna(axis = 0, subset=['page_link'])
+    drop_cols = ['changed_fields', 'page_link', 'page_author',
+       'gts_live', 'pageviews_7_days', 'page_last_updated', 'run_time']
+    filtered_details = filtered_details.drop(columns=drop_cols)
+    filtered_details = filtered_details.drop_duplicates(ignore_index=True)
+
+# change datetimes into strings, for writing to files (added to admin needs seconds, as we use it as the starting point next time!)
+    
+    for c in ['run_time']:
+        worklist[c] = [t.strftime("%Y-%m-%d %H:%M") for t in worklist[c]]
+    for c in ['scheduled_at', 'run_timestamp']:
+        filtered_details[c] = [t.strftime("%Y-%m-%d %H:%M") if t != 0 else '' for t in filtered_details[c]]
+    for c in ['added_to_admin']:
+        filtered_details[c] = [t.strftime("%Y-%m-%d %H:%M:%S") if t != 0 else '' for t in filtered_details[c]]
+
+    filtered_details['created_at'] = [t.strftime("%Y-%m-%d") if t != 0 else '' for t in filtered_details['created_at']]
 
 # write to worklist gsheet
     
     write_to_gsheet(sheets_file, 'worklist', worklist)
+    write_to_gsheet(sheets_file, 'details', filtered_details)
+
+    number_of_changes = len(worklist)
+    number_of_pages = len(filtered_details)
 
 # set error flag if the above failed
     
@@ -340,13 +392,15 @@ else:
     f.write("success " + filesavetime)
     f.close()
     ### include code to save the last date successfully written to gsheets
-    f = open(data_proc_path + "success_date.txt", "a")
-    f.write('TBC')
-    f.close()
+        # f = open(data_proc_path + "success_date.txt", "a")
+        # f.write('TBC')
+        # f.close()
+    
     # send to webhook to trigger slack message
-    slack_webhook = 'https://hooks.slack.com/triggers/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'
-    body = '{"timestamp": "' + run_timestamp + '"}'
-    r = requests.post(url=slack_webhook, data=body)
+    if number_of_pages > 0:
+        slack_webhook = 'https://hooks.slack.com/triggers/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'
+        body = '{"timestamp": "' + run_timestamp + '", "pages": "' + str(number_of_pages) + '", "changes": "' + str(number_of_changes) +'"}'
+        r = requests.post(url=slack_webhook, data=body)
 
 
 # %%
