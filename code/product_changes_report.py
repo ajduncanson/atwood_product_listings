@@ -36,6 +36,8 @@ if os.path.exists(data_proc_path + "success.txt"):
 if os.path.exists(data_proc_path + "error.txt"):
     os.remove(data_proc_path + "error.txt")
 
+pd.set_option('display.max_rows', None)
+
 #%%
 # functions to select from sql and write to gsheets
 
@@ -115,8 +117,14 @@ def get_gts(datetime1):
     select product_type, product_id
     from gts_link_versions
     where created_at > '{datetime1}'
-    and active = 1
+    and active = 1   
+    UNION
+    select product_type, product_id 
+    from gts_links
+    where active = 1
+    and right(product_type, 7) <> 'Version'
     """
+
     with sqlEngine_ethercat.connect() as dbConnection:
         result = pd.read_sql(sql=query, con=dbConnection)  
 
@@ -246,14 +254,19 @@ try:
     # recent gts date = 40 days prior
     gts_date = (datetime.strptime(pfv_date, "%Y-%m-%d %H:%M:%S") - timedelta(days=40)).strftime("%Y-%m-%d")
 
-    # EXTRACT 1
+    # EXTRACT 1: find all the pending field value records
     data_pfv = get_pfv(pfv_date)
 
-    # EXTRACT 2
+    # EXTRACT 2: find all the monetised or recently monetised products
     data_gts = get_gts(gts_date)
 
     # LOOP EXTRACT PRODUCT & PROVIDER NAMES
     product_dict = data_gts.groupby('product_type')['product_id'].apply(list).to_dict()
+
+    # remove unwanted product types
+    product_dict = {key: val for key, 
+            val in product_dict.items() if key != 'Electricity'}
+
     monetised_products = get_product_name_ids(product_dict)
 
     # TRANSFORM
