@@ -381,8 +381,8 @@ try:
     write_to_gsheet(sheets_file, 'worklist', worklist)
     write_to_gsheet(sheets_file, 'details', filtered_details)
 
-    number_of_changes = len(worklist)
-    number_of_pages = len(filtered_details)
+    number_of_pages = len(worklist)
+    number_of_changes = len(filtered_details)
 
 # set error flag if the above failed
     
