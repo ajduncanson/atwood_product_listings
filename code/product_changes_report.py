@@ -246,10 +246,12 @@ try:
     # look up the added_to_admin date of the most recent date written to gsheets
     wks = sheets_file.worksheet('title','details')
     cells = wks.get_col(col = 8,returnas='matrix', include_tailing_empty=False)
+    cells_times = [datetime.strptime(c, "%Y-%m-%d %H:%M:%S") for c in cells[1:]]
 
     # use that timestamp as the starting point for this query
     ##test pfv_date = '2024-05-07 08:00:00'
-    pfv_date = cells[len(cells)-1]
+
+    pfv_date = datetime.strftime(max(cells_times), "%Y-%m-%d %H:%M:%S")
 
     # recent gts date = 40 days prior
     gts_date = (datetime.strptime(pfv_date, "%Y-%m-%d %H:%M:%S") - timedelta(days=40)).strftime("%Y-%m-%d")
