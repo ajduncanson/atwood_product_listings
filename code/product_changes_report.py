@@ -63,41 +63,21 @@ def table_name(productType, version = False):
         suffix = 's'
     return camelToSnake(productType) + suffix
 
-def get_pfv_grouped(date1):
-
-    query = f"""
-    select DATE(created_at) as created_at, max(created_at) as max, 
-    product_type, product_id, 
-    GROUP_CONCAT(DISTINCT field_name SEPARATOR', ') as changes, 
-    scheduled_at
-    from pending_field_values
-    where created_at >= '{date1}'
-    and product_type <> 'MppTab'
-    GROUP BY DATE(created_at), product_type, product_id
-    """
-    
-    with sqlEngine_spacecoyote.connect() as dbConnection:
-        result = pd.read_sql(sql=query, con=dbConnection)
-
-    return result
-
 
 def get_pfv(datetime1):
 
     query = f"""
-    select DATE(created_at) as created_at,  
+    select DATE(updated_at) as updated_at,  
     product_type, product_id, 
     field_name as changes, 
-    CASE WHEN (product_type = 'TermDeposit' and field_name = 'interest_rate_tiers') THEN 'ask Research Team for the new interest rate'
-    ELSE REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(field_value, '(---( )?)', ''),'\\n','; '),''\';', '') END as new_value,
-    scheduled_at, created_at as added_to_admin,
+    REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(field_value, '(---( )?)', ''),'\\n','; '),''\';', '') as new_value,
+    scheduled_at, updated_at as added_to_admin,
     'mozo.com.au' as product_page_link
     from pending_field_values
-    where created_at > '{datetime1}'
+    where updated_at > '{datetime1}'
     and product_type <> 'MppTab'
     and field_name <> 'gts'
-    and (state <> 'pending' or (state = 'pending' and scheduled_at is not NULL))
-    and state <> 'canceled'
+    and state = 'updated'
     """
     
     with sqlEngine_spacecoyote.connect() as dbConnection:
@@ -164,7 +144,7 @@ def get_provider_names():
     return providers
 
 
-def make_product_page_url(product_type, provider, product_group, id):
+def make_product_page_url(product_type, provider, product_group, product_group_id, id):
 
     product_page_dict = {'HomeLoan': '/home-loans/information',
                          'TermDeposit': '/term-deposits/information', 
@@ -189,7 +169,7 @@ def make_product_page_url(product_type, provider, product_group, id):
     product_group = product_group.replace(' ', '-').lower()
 
     if product_type in product_page_dict.keys():
-        result = 'mozo.com.au' + product_page_dict[product_type] + '/' +  provider + '/' + product_group + '/' + id
+        result = 'mozo.com.au' + product_page_dict[product_type] + '/' +  provider + '/' + product_group + '/' + product_group_id + '?id=' + str(id)
     elif product_type in product_page_whole_provider_dict.keys():
         result = 'mozo.com.au' + product_page_whole_provider_dict[product_type] + '/' +  provider
     else:
@@ -281,8 +261,8 @@ try:
 
     # tidy ups
     result = result.reset_index(drop=True)
-    result = result.sort_values(by = ['created_at', 'product_type', 'provider', 'product_name', 'changes', 'added_to_admin'], axis = 0)
-    col_order = ['created_at', 'product_type', 
+    result = result.sort_values(by = ['updated_at', 'product_type', 'provider', 'product_name', 'changes', 'added_to_admin'], axis = 0)
+    col_order = ['updated_at', 'product_type', 
                     'provider', 'product_name',
                     'changes', 
                     #'previous_value', 
@@ -296,7 +276,7 @@ try:
 # create the product_page_link
     
     result['product_page_link'] = [
-        make_product_page_url(row['product_type'], row['provider'], row['product_group_name'], row['product_group_id']) 
+        make_product_page_url(row['product_type'], row['provider'], row['product_group_name'], row['product_group_id'], row['product_id']) 
         for i,row in result.iterrows()
         ]
 
@@ -376,7 +356,7 @@ try:
     for c in ['added_to_admin']:
         filtered_details[c] = [t.strftime("%Y-%m-%d %H:%M:%S") if t != 0 else '' for t in filtered_details[c]]
 
-    filtered_details['created_at'] = [t.strftime("%Y-%m-%d") if t != 0 else '' for t in filtered_details['created_at']]
+    filtered_details['updated_at'] = [t.strftime("%Y-%m-%d") if t != 0 else '' for t in filtered_details['updated_at']]
 
 # write to worklist gsheet
     
