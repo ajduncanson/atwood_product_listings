@@ -125,30 +125,30 @@ def select_query(prod):
     return query
 
 
-def pageview_query(d):
-    query = f"""
-    select 
-    REGEXP_REPLACE(page, '[?].*$', '') as page,
-    sum(case when (sub_channel = 'Search(Google)') or (sub_channel = 'Search(Bing)') then 1 else 0 end) as pageviews_search,
-    sum(case when (sub_channel = 'Organic') or (sub_channel = 'Direct') then 1 else 0 end) as pageviews_organic_direct,
-    sum(case when (sub_channel != 'Organic') and (sub_channel != 'Direct') and (sub_channel != 'Search') then 1 else 0 end) as pageviews_other_paid,
-    count(*) as pageviews_7_days      
-    FROM
-        ferris_tableau.rcd
-        where 
-        source = 'ga' 
-        and page not like '/gts%%'
-        and `date` >= '{d}'              
-    group by REGEXP_REPLACE(page, '[?].*$', '')
-    """
-    return query
+# def pageview_query(d):
+#     query = f"""
+#     select 
+#     REGEXP_REPLACE(page, '[?].*$', '') as page,
+#     sum(case when (sub_channel = 'Search(Google)') or (sub_channel = 'Search(Bing)') then 1 else 0 end) as pageviews_search,
+#     sum(case when (sub_channel = 'Organic') or (sub_channel = 'Direct') then 1 else 0 end) as pageviews_organic_direct,
+#     sum(case when (sub_channel != 'Organic') and (sub_channel != 'Direct') and (sub_channel != 'Search') then 1 else 0 end) as pageviews_other_paid,
+#     count(*) as pageviews_7_days      
+#     FROM
+#         ferris_tableau.rcd
+#         where 
+#         source = 'ga' 
+#         and page not like '/gts%%'
+#         and `date` >= '{d}'              
+#     group by REGEXP_REPLACE(page, '[?].*$', '')
+#     """
+#     return query
 
 
-def test_query():
-    query = f"""
-    select * from ferris_tableau.provider_name
-    """
-    return query
+# def test_query():
+#     query = f"""
+#     select * from ferris_tableau.provider_name
+#     """
+#     return query
 
 ### when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 365)) then 2
 
@@ -177,18 +177,18 @@ except:
     error_flag = True
 
 #%% 
-# get aircamel data
+# get pageview data ---- ##### removed, as rcd ga no longer available
 
-# connection to db activity data
-sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
+# # connection to db activity data
+# sqlEngine = sqlEngineCreator('aircamel_rep_username', 'aircamel_rep_password', 'aircamel_rep_host', 'aircamel_rep_db')
 
-try:  
-    with sqlEngine.connect() as dbConnection:
-        query = pageview_query(pageview_date)
-        pageview_result = pd.read_sql(sql=query, con=dbConnection)
-        pageview_result['page'] = ['https://mozo.com.au' + p for p in pageview_result['page']]
-except:
-    error_flag = True
+# try:  
+#     with sqlEngine.connect() as dbConnection:
+#         query = pageview_query(pageview_date)
+#         pageview_result = pd.read_sql(sql=query, con=dbConnection)
+#         pageview_result['page'] = ['https://mozo.com.au' + p for p in pageview_result['page']]
+# except:
+#     error_flag = True
 
 # %%
 # save to gsheets
@@ -209,8 +209,9 @@ try:
         # test    prod = 'HomeLoan'  
 
         this_result = result[prod]
-        this_result = this_result.merge(pageview_result, how = 'left', left_on = 'page_link', right_on = 'page')
-        this_result = this_result.drop(columns=['page'])
+        ####### removed; used ga pageviews
+            # this_result = this_result.merge(pageview_result, how = 'left', left_on = 'page_link', right_on = 'page')
+            # this_result = this_result.drop(columns=['page'])
         this_result = this_result.fillna(0)
 
         # write to gsheets

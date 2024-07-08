@@ -169,7 +169,7 @@ def make_product_page_url(product_type, provider, product_group, product_group_i
     product_group = product_group.replace(' ', '-').lower()
 
     if product_type in product_page_dict.keys():
-        result = 'mozo.com.au' + product_page_dict[product_type] + '/' +  provider + '/' + product_group + '/' + product_group_id + '?id=' + str(id)
+        result = 'mozo.com.au' + product_page_dict[product_type] + '/' +  provider + '/' + product_group + '/' + str(product_group_id) + '?id=' + str(id)
     elif product_type in product_page_whole_provider_dict.keys():
         result = 'mozo.com.au' + product_page_whole_provider_dict[product_type] + '/' +  provider
     else:
@@ -322,15 +322,21 @@ try:
 
     #specify final report columns & sort
 
-    report_cols = join_cols + ['changed_fields', 'page_link', 'page_author', 'gts_live', 'pageviews_7_days', 'page_last_updated']
+    report_cols = join_cols + ['changed_fields', 'page_link', 'page_author', 'gts_live', 
+                            #    'pageviews_7_days', 
+                               'page_last_updated']
     worklist = worklist[report_cols]
 
     #join rows where mulitple authors
     worklist['page_author'] = worklist.groupby([r for r in report_cols if r not in ['page_author']])['page_author'].transform(lambda x: ','.join(x))
     worklist = worklist.drop_duplicates(ignore_index=True)
 
-    worklist = worklist.sort_values(by = join_cols + ['gts_live', 'pageviews_7_days'],
-                                    ascending = [True, True, True, False, False])
+    worklist = worklist.sort_values(by = join_cols + ['gts_live'
+                                                    #   , 'pageviews_7_days'
+                                                      ],
+                                    ascending = [True, True, True, False
+                                                # , False
+                                                 ])
     
     worklist['run_time'] = run_time
 
@@ -343,7 +349,9 @@ try:
     #drop anything not in worklist
     filtered_details = filtered_details.dropna(axis = 0, subset=['page_link'])
     drop_cols = ['changed_fields', 'page_link', 'page_author',
-       'gts_live', 'pageviews_7_days', 'page_last_updated', 'run_time']
+       'gts_live', 
+    #    'pageviews_7_days', 
+       'page_last_updated', 'run_time']
     filtered_details = filtered_details.drop(columns=drop_cols)
     filtered_details = filtered_details.drop_duplicates(ignore_index=True)
 
