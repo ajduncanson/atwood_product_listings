@@ -112,16 +112,24 @@ def select_query(prod):
         select `ferris_production`.`cms_entities`.`cms_component_entity_id` AS `id`, 
         1 AS `flag` 
         from `ferris_production`.`cms_entities` 
-        where ((`ferris_production`.`cms_entities`.`cms_component_prop_id` = 81) 
+        where ((`ferris_production`.`cms_entities`.`cms_component_prop_id` in (81, 381)) 
             and (`ferris_production`.`cms_entities`.`published_content` = '{prod}'))
         ) `entity_list` 
         on (`e`.`cms_component_entity_id` = `entity_list`.`id`)
     )
     left join `ferris_production`.`{prod_table[prod]}` `a` on(`e`.`published_content` = `a`.`id`) 
     left join `ferris_production`.`providers` `prov` on (`a`.`provider_id` = `prov`.`id`)  
-    where ((`e`.`cms_component_prop_id` = 83) and (`e`.`published_content` is not null) and (`p`.`is_published` = 1) and (`ce`.`hidden` = 0) and (`entity_list`.`flag` = 1)) 
+    where ((`e`.`cms_component_prop_id` in (83, 382)) and (`e`.`published_content` is not null) and (`p`.`is_published` = 1) and (`ce`.`hidden` = 0) and (`entity_list`.`flag` = 1)) 
     order by `recency` desc,`prov`.`name`,`a`.`name`,`e`.`cms_page_id`) `t`
     """
+    ### explanation of codes:
+        ### for product listing components:
+        # cms_entities.cms_component_prop_id = 81; ie entity has component property = 'product_type'; when matched with cms_entities.published_content = 'HomeLoan' this denotes product_type = 'HomeLoan.
+        # cms_entities.cms_component_prop_id = 83; ie entity has component property = 'product'; when matched with cms_entities.published_content = 123 this denotes product_id = 123.
+
+        ### for editorial reviews on PPT pages:
+        # cms_entities.cms_component_prop_id = 381; ie entity has component property = 'product_type'; when matched with cms_entities.published_content = 'HomeLoan' this denotes product_type = 'HomeLoan.
+        # cms_entities.cms_component_prop_id = 382; ie entity has component property = 'product'; when matched with cms_entities.published_content = 123 this denotes product_id = 123.
     return query
 
 

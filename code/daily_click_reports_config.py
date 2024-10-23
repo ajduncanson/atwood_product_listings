@@ -95,10 +95,19 @@ cred_info['gsheets'] = [
                  },
      'gsheets_key': '1-5wI3IAOeioAFNSLw6Be9nEUSJW2uJ_jhfwqew2clh8'},
 
+    #  {'provider': 'Macquarie',
+    #  'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'},
+    #              'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'}
+    #              },
+    #  'gsheets_key': '1yxNSPpK33iUjxBjzOR2UF77h7Cj-K3uOSx2DZO2QvOA'},
+
      {'provider': 'Macquarie',
-     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'},
+     'content': {'HomeLoan': {'cols': ['Clicks', 'Spend'], 'product_level': 'regex'},
                  'SavingsAccount': {'cols': ['Clicks', 'Spend'], 'product_level': 'product'}
                  },
+     'grouping': {'regex': 'Offset', 
+                  'label': 'Offset Loan', 
+                  'other_label': 'Other Home Loans'},
      'gsheets_key': '1yxNSPpK33iUjxBjzOR2UF77h7Cj-K3uOSx2DZO2QvOA'},
 
      {'provider': 'NRMA',

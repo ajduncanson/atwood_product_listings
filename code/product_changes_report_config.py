@@ -19,7 +19,8 @@ with open(dev_env_file) as f:
 cred_info['gsheets'] = [
     
     {'gsheets_key': '1qLtP9RBkrX-0WM4m6aLluZnYUiTSsitPlucnCG2jrio'
-    }
+    },
+    {'gsheets_key': '1zCwg4ef7Jrq8HvGKShPJLaWmgy3mRW5-dfxLq5cSNdI'}
 ]  
 
 
