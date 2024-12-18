@@ -81,12 +81,12 @@ def select_query(prod):
     select distinct t.product_id AS product_id, t.provider AS provider, t.product_name AS product_name,
     t.page_last_updated AS page_last_updated, t.recency AS recency, t.page_link AS page_link,
     t.page_author, 
-    case when t.last_updater is NULL then "unknown" else t.last_updater end as last_updater, 
+    case when t.last_updater is NULL then 'unknown' else t.last_updater end as last_updater, 
     t.atwood_template
     from 
     (select `a`.`id` AS `product_id`,`prov`.`name` AS `provider`,`a`.`name` AS `product_name`,
     (case when (`p`.`last_updated_at` is null) then `p`.`published_at` else `p`.`last_updated_at` end) AS `page_last_updated`,
-    (case when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 180) or `p`.`path` like "/best%") then 3 else 1 end) AS `recency`,
+    (case when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 180) or regexp_like(`p`.`path`, '^/best')) then 3 else 1 end) AS `recency`,
     concat('https://mozo.com.au',`p`.`path`) AS `page_link`,
     ca.name AS page_author,
     au.name AS last_updater,
@@ -171,11 +171,11 @@ error_flag = False
 
 # connection to current db list of endpoints
 sqlEngine = sqlEngineCreator('ethercat_username', 'ethercat_password', 'ethercat_host', 'ethercat_db')
-
+#%%
 try:
     for prod in product_types:
 
-        # test    prod = 'HomeLoan'
+        # test    prod = 'TravelInsurance'
         with sqlEngine.connect() as dbConnection:
             query = select_query(prod)
             db_results = pd.read_sql(sql=query, con=dbConnection)
