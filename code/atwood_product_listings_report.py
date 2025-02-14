@@ -76,6 +76,9 @@ prod_table = {'HomeLoan': 'home_loans',
               'LifeInsurance': 'life_insurances'
               }
 
+# note: the function select_query was fixed on 2025-02-14 to correct a bug. Was previously assessing recency using last_updated_at instead of the correct page_last_updated field.
+# at some point in August 2024, last_updated_at stopped working and pages started to be mis-characterised in terms of recency. 
+
 def select_query(prod):
     query = f"""
     select distinct t.product_id AS product_id, t.provider AS provider, t.product_name AS product_name,
@@ -85,8 +88,8 @@ def select_query(prod):
     t.atwood_template
     from 
     (select `a`.`id` AS `product_id`,`prov`.`name` AS `provider`,`a`.`name` AS `product_name`,
-    (case when (`p`.`last_updated_at` is null) then `p`.`published_at` else `p`.`last_updated_at` end) AS `page_last_updated`,
-    (case when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 180) or regexp_like(`p`.`path`, '^/best')) then 3 else 1 end) AS `recency`,
+    (case when (`p`.`page_updated_at` is null) then `p`.`published_at` else `p`.`page_updated_at` end) AS `page_last_updated`,
+    (case when ((`p`.`page_updated_at` is null) or ((to_days(now()) - to_days(`p`.`page_updated_at`)) < 180) or regexp_like(`p`.`path`, '^/best')) then 3 else 1 end) AS `recency`,
     concat('https://mozo.com.au',`p`.`path`) AS `page_link`,
     ca.name AS page_author,
     au.name AS last_updater,
@@ -158,7 +161,6 @@ def select_query(prod):
 #     """
 #     return query
 
-### when ((`p`.`last_updated_at` is null) or ((to_days(now()) - to_days(`p`.`last_updated_at`)) < 365)) then 2
 
 #%%
 # get ethercat data
