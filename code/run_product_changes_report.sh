@@ -7,7 +7,7 @@ log_file='../logs/started_'${start_time:0:10}'.log'
 echo '\n'$start_time'\tStart' >> $log_file
 
 echo 'Running product changes report now' >> $log_file
-~/.pyenv/versions/cdr-project-env/bin/python3 product_changes_report_v2.py >> $log_file 2>&1
+~/.pyenv/versions/cdr-project-env/bin/python3 product_changes_report_v3.py >> $log_file 2>&1
 
 if [[ $(find ../data/product_changes_report/success.txt -mmin -5 -print) ]]
 then
