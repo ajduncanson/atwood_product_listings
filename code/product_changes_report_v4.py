@@ -360,7 +360,8 @@ try:
 
     #specify final report columns & sort
 
-    report_cols = join_cols + ['changed_fields', 'page_link', 'page_author', 'gts_live', 
+    report_cols = ['product_type', 'product_id', 'provider', 'product_name',
+                    'changed_fields', 'page_link', 'page_author', 'gts_live', 
                             #    'pageviews_7_days', 
                                'page_last_updated']
     worklist = worklist[report_cols]
