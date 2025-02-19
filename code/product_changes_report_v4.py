@@ -370,15 +370,18 @@ try:
     worklist['page_author'] = worklist.groupby([r for r in report_cols if r not in ['page_author']])['page_author'].transform(lambda x: ','.join(x))
     worklist = worklist.drop_duplicates(ignore_index=True)
 
-    worklist = worklist.sort_values(by = ['product_type', 'product_id', 'gts_live'
+    worklist = worklist.sort_values(by = ['product_type', 'provider', 'product_name', 'gts_live'
                                                     #   , 'pageviews_7_days'
                                                       ],
-                                    ascending = [True, True, False
+                                    ascending = [True, True, True, False
                                                 # , False
                                                  ])
     
+    # add run time
     worklist['run_time'] = run_time
 
+    #now that the joins are complete we don't need id in what we write to the gsheet 'worklist' tab
+    worklist = worklist.drop(columns=['product_id'])
 
 # make detail list including only the atwood worklist products
     
