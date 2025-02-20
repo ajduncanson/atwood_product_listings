@@ -380,13 +380,14 @@ try:
     # add run time
     worklist['run_time'] = run_time
 
-    #now that the joins are complete we don't need id in what we write to the gsheet 'worklist' tab
-    worklist = worklist.drop(columns=['product_id'])
 
 # make detail list including only the atwood worklist products
     
     #merge
     filtered_details = result.merge(right = worklist, how = 'left', on = join_cols)
+
+    #now that the joins are complete we don't need id in what we write to the gsheet 'worklist' tab
+    worklist = worklist.drop(columns=['product_id'])
 
     #drop anything not in worklist
     filtered_details = filtered_details.dropna(axis = 0, subset=['page_link'])
